@@ -1,3 +1,9 @@
+design_temp/
+IMPLEMENTATION_PLAN.md
+PSTACK*
+
+data/verification/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

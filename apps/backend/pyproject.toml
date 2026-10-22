@@ -1,0 +1,25 @@
+[project]
+name = "gobblegobble-backend"
+version = "0.1.0"
+description = "Python backend environment for GobbleGobble."
+requires-python = ">=3.14,<3.15"
+dependencies = [
+    "fastapi>=0.161.0,<0.162",
+    "uvicorn>=0.54.0,<0.55",
+    "httpx>=0.28.1,<0.29",
+    "openai>=3.36.1,<4",
+    "openai-agents>=0.24.0,<0.25",
+    "pydantic>=2.14.1,<3",
+    "pydantic-settings>=2.16.1,<3",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1,<10",
+    "pytest-asyncio>=1.4.0,<2",
+    "ruff>=0.17.2,<0.18",
+    "mypy>=2.4.0,<3",
+]
+
+[tool.uv]
+package = false
