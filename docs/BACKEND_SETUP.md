@@ -1,6 +1,6 @@
 # Set up the backend environment
 
-This procedure installs the Python dependencies for GG-002.01 and prepares local settings for GG-002.02. The API, worker, and probes are not implemented yet. Section A verification remains at GG-003.
+This procedure installs the Python dependencies for GG-002.01 and prepares local settings for GG-002.02. GG-002.03 adds the [bounded call layer](CALLS.md) for future adapters. GG-002.04 and GG-002.05 add prepared geographic clients. GG-002.06 adds the [web-research client](WEB_RESEARCH_PROBES.md). The API, worker, and executable probe command are not implemented yet. Section A verification remains at GG-003.
 
 ## Prerequisites
 
@@ -50,7 +50,7 @@ Edit dependencies through uv from `apps/backend` and review both `pyproject.toml
 
 The runtime dependencies cover HTTP requests, the OpenAI client and Agents SDK, typed data and settings, and the planned FastAPI server. The development group contains pytest, pytest-asyncio, Ruff, and mypy. The [official Agents SDK quickstart](https://developers.openai.com/api/docs/guides/agents/quickstart?lang=python) identifies `openai-agents` as the Python SDK package.
 
-The `app` package contains the local settings boundary. Database libraries can be selected with the persistence implementation. Geographic provider adapters can use HTTPX without choosing Google or Geoapify during environment setup. Models, credentials, and source permissions remain governed by the [integration findings](INTEGRATIONS.md) and later tasks. Installing the SDK does not configure its tracing or authorize live research.
+The `app` package contains local settings, the bounded call layer, and the prepared [location/discovery](GEOGRAPHY_PROBES.md) and [walking/driving route](ROUTE_PROBES.md) client, plus the [OpenAI web-research client](WEB_RESEARCH_PROBES.md). None runs a provider during import or environment setup. Database libraries can be selected with the persistence implementation. The geographic client uses the installed HTTPX dependency. Provider selection and live access remain unverified. Models, credentials, and source permissions remain governed by the [integration findings](INTEGRATIONS.md) and later tasks. Installing the SDK does not configure its tracing or authorize live research.
 
 ## Configure local settings
 

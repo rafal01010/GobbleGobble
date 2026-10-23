@@ -95,6 +95,6 @@ The second example still requires selections, model IDs, and timeouts in the pro
 
 ## Completion boundary
 
-Configured timeouts are inputs for future adapters. This task does not enforce request deadlines or call budgets. GG-002.03 adds bounded call receipts. GG-002.04 through GG-002.08 add provider clients, SDK wiring, and the probe command. In particular, loading settings does not disable SDK tracing or implement source-use enforcement.
+The [bounded call layer](CALLS.md) added in GG-002.03 resolves geographic/model timeouts from `Settings` and combines them with an explicit request allowance and total deadline. Bounds are caller arguments, with no additional environment variables or chosen limits. Configuring settings alone invokes no calls. GG-002.04 through GG-002.08 add provider clients, SDK wiring, and the probe command. Loading settings does not disable SDK tracing.
 
 Local readiness proves neither key validity nor billing, enabled APIs, quota, model availability, route coverage, or source permission. Google choices remain conditional under the [integration findings](INTEGRATIONS.md). GG-003 retains the missing-key, environment-override, effective-settings, and bounded live verification cases. Model access, operational timeout choices, costs, and timings remain unverified until that gate.

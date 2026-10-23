@@ -8,7 +8,7 @@ Google remains preferred where its capability and terms fit the application. The
 
 The proposed alternative is Geoapify for geographic lookup, discovery, and mode-specific routes, plus OpenAI Responses web search for food research. Geoapify explicitly documents AI-agent use and reusable geographic results. This is a plausible path to probe, not a measured coverage or quality finding. Optional menus and reviews come from attributable, permitted sources encountered during research. [Geoapify AI tools][a-ai], [Places reuse][a-places], and [OpenAI web search][o-web] support this proposal.
 
-No provider, model, account entitlement, or key has been tested or configured by this task. Documentation access is the only external activity performed. There are no application or probe implementations yet.
+No provider, model, account entitlement, or key has been tested or configured by GG-001.02. Documentation access was its only external activity. GG-002.02 supplies local settings and credential preflight. GG-002.03 supplies the [bounded call layer and safe receipts](CALLS.md). GG-002.04 prepares the [Geoapify location/discovery client](GEOGRAPHY_PROBES.md). GG-002.05 adds [walking/driving route requests and explicit failures](ROUTE_PROBES.md) in that client. Its Google selections fail explicitly without fallback. Final provider selection, live access, and model compatibility remain GG-003. GG-002.06 prepares [OpenAI web search and citation capture](WEB_RESEARCH_PROBES.md). Its returned evidence remains ephemeral and requires source checks before downstream use. SDK agent wiring and the probe command remain scheduled work.
 
 ## Capability comparison
 
@@ -49,7 +49,7 @@ The Agents SDK enables tracing by default and can record tool outputs and model 
 
 Google model compatibility remains unresolved. A successful request, `store=false`, a no-training default, or disabled SDK traces alone cannot close it. GG-003 needs evidence for the exact account, model, caching, and retention combination before sending restricted Maps content into a model. Otherwise, that gate can select the permitted alternative.
 
-Proposed receipts contain provider and model identity, capability, timestamp, elapsed time, outcome, usage, and cost where available. They omit keys, authorization headers, full request URLs containing keys, precise user locations, and restricted content. Saved outputs, checkpoints, events, screenshots, and evaluation captures inherit the source restrictions. Enforcement belongs to GG-002.03 and GG-009, rather than this documentation task.
+GG-002.03 implements receipts with provider identity, safely named requested model identity where available, capability, timestamp, elapsed time, outcome, usage, and cost where available. Unreviewed model text is explicitly omitted and never changes the configured model used by an adapter. Receipts omit keys, authorization headers, request URLs, precise user locations, arbitrary exception text, and response content. The [call reference](CALLS.md) defines the exact projection, bounds, and source-use admission. Provider retry/tracing controls remain with the scheduled adapters. Saved outputs, checkpoints, events, screenshots, and evaluation captures inherit source restrictions. Their broader enforcement remains GG-009. Metadata receipts grant no payload retention or reuse permission.
 
 ## Credential and account requirements
 

@@ -1,6 +1,6 @@
 # GobbleGobble architecture and ownership
 
-This reference records the proposed architecture for GG-001.04. The [product contract](PRODUCT.md) sets its scope, and the [integration findings](INTEGRATIONS.md) constrain source use. GG-001.04 is implemented, awaiting section verification at GG-003. GG-002.01 adds the [backend environment](BACKEND_SETUP.md). GG-002.02 adds the [local settings boundary](SETTINGS.md) in `app/core/settings.py`. No API, database, worker, or agent exists yet. This document describes their intended ownership, not measured behavior.
+This reference records the proposed architecture for GG-001.04. The [product contract](PRODUCT.md) sets its scope, and the [integration findings](INTEGRATIONS.md) constrain source use. GG-001.04 is implemented, awaiting section verification at GG-003. GG-002.01 adds the [backend environment](BACKEND_SETUP.md). GG-002.02 adds the [local settings boundary](SETTINGS.md) in `app/core/settings.py`. GG-002.03 adds [bounded calls and safe receipts](CALLS.md) in `app/core/calls.py`. GG-002.04 adds the [location/discovery client](GEOGRAPHY_PROBES.md) in `app/providers/geoapify.py`. GG-002.05 adds [walking/driving route requests](ROUTE_PROBES.md) to the same client. GG-002.06 adds the [web-research client](WEB_RESEARCH_PROBES.md) in `app/providers/web_research.py`. No API, database, worker, or agent exists yet. This document describes their intended ownership, not measured behavior.
 
 ## Fixed design and starting assumptions
 
@@ -14,7 +14,7 @@ Accounts, open-ended chat, future-date planning, deployment, and CartCart shoppi
 
 ## Planned module map
 
-The module paths below remain proposed except for `apps/backend/app/core/settings.py` and its package markers. GG-002.01 creates the parent `apps/backend/app/` package and the `scripts/local/init-backend.sh` environment command. GG-002.02 implements settings and credential preflight. The ownership boundaries are the design contract. Later implementation tasks can choose filenames within those boundaries. The table does not describe implemented application interfaces.
+The module paths below remain proposed except for `apps/backend/app/core/settings.py`, `apps/backend/app/core/calls.py`, `apps/backend/app/providers/geoapify.py`, `apps/backend/app/providers/web_research.py`, and their package markers. GG-002.01 creates the parent `apps/backend/app/` package and the `scripts/local/init-backend.sh` environment command. GG-002.02 implements settings and credential preflight. GG-002.03 implements call admission, shared request/time bounds, and metadata receipts. GG-002.04 implements bounded Geoapify location/discovery requests using that same attempt configuration. GG-002.05 adds route estimates and explicit unavailable outcomes under the same bounds. GG-002.06 prepares bounded OpenAI Responses web search with ephemeral citation-bearing results. The ownership boundaries are the design contract. Later implementation tasks can choose filenames within those boundaries. The table does not describe implemented application interfaces.
 
 | Planned location | Responsibility | Implementation tasks |
 |---|---|---|
@@ -119,7 +119,7 @@ Cancellation prevents further work and later publication. Lease loss prevents th
 
 Source access, model input, display, derived output, storage, and tracing require separate permission decisions. Unknown source policy does not authorize raw persistence. Unknown model or derived-output permission blocks those uses. Source restrictions follow dependent claims, snapshots, food choices, checkpoints, events, results, and evaluation captures. Expiry can therefore make a saved result unavailable or require reacquisition.
 
-Factual freshness and permitted retention remain independent. A retained opening fact can be too old for eat-now eligibility. A current fact can be forbidden to persist. Content-bearing tracing is disabled by the proposed policy. Sanitized receipts omit secrets, precise user locations, and restricted content. None of these controls is configured by this document. The [integration findings](INTEGRATIONS.md#openai-processing-and-diagnostics) remain the source-policy record.
+Factual freshness and permitted retention remain independent. A retained opening fact can be too old for eat-now eligibility. A current fact can be forbidden to persist. The call layer's closed receipt projection omits secrets, precise user locations, and restricted content. Its source gate blocks unresolved Google model use and unknown publisher input to a model. Broader evidence retention and dependent-claim enforcement remain GG-009. Content-bearing SDK tracing is disabled by the proposed policy, with runtime wiring still scheduled for GG-002.07. The [integration findings](INTEGRATIONS.md#openai-processing-and-diagnostics) remain the source-policy record.
 
 ## Open decisions and resolution tasks
 
