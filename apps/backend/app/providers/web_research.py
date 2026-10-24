@@ -168,6 +168,7 @@ class WebObservation:
     outcome: Literal[
         "evidence", "no_evidence", "refused", "incomplete", "provider_failed"
     ]
+    ignored_tool_calls: _Count = 0
 
 
 @dataclass(frozen=True, config=_STRICT)
@@ -344,6 +345,7 @@ class _Response(_Wire):
         Annotated[_Message | _Hosted | _Reasoning, Field(discriminator="type")]
     ] = Field(repr=False)
     usage: _Usage | None = None
+    max_tool_calls: Annotated[int, Field(ge=1)] | None = None
     incomplete_details: _Incomplete | None = None
     error: _Error | None = Field(default=None, repr=False)
 
@@ -352,8 +354,9 @@ class _Response(_Wire):
         if info.context is None:
             raise ValueError("missing research limits")
         limits: WebLimits = info.context["limits"]
+        ignored = _ignored_hosted_indexes(self, limits)
         if (
-            sum(isinstance(item, _Hosted) for item in self.output)
+            sum(isinstance(item, _Hosted) for item in self.output) - len(ignored)
             > limits.max_tool_calls
         ):
             raise ValueError("research tool limit exceeded")
@@ -368,14 +371,49 @@ class _Response(_Wire):
             raise ValueError("invalid research status")
         if self.status == "completed" and any(
             item.status not in {None, "completed", "failed", "incomplete"}
-            for item in self.output
+            for index, item in enumerate(self.output)
+            if index not in ignored
         ):
             raise ValueError("invalid research item status")
         return self
 
 
+def _ignored_hosted_indexes(response: _Response, limits: WebLimits) -> frozenset[int]:
+    if (
+        response.status != "completed"
+        or response.error is not None
+        or response.incomplete_details is not None
+        or response.max_tool_calls != limits.max_tool_calls
+        or any(
+            isinstance(item, _Message)
+            and item.status != "completed"
+            or isinstance(item, _Reasoning)
+            and item.status not in {None, "completed"}
+            for item in response.output
+        )
+    ):
+        return frozenset()
+    hosted = [
+        (index, item)
+        for index, item in enumerate(response.output)
+        if isinstance(item, _Hosted)
+    ]
+    cap = limits.max_tool_calls
+    if (
+        len(hosted) <= cap
+        or len({item.id for _, item in hosted}) != len(hosted)
+        or any(item.status != "completed" for _, item in hosted[:cap])
+        or any(
+            item.status not in {"searching", "in_progress"} for _, item in hosted[cap:]
+        )
+    ):
+        return frozenset()
+    return frozenset(index for index, _ in hosted[cap:])
+
+
 def _parse_response(body: bytes, limits: WebLimits) -> Parsed[WebResult]:
     response = _Response.model_validate_json(body, context={"limits": limits})
+    ignored = _ignored_hosted_indexes(response, limits)
     hosted: list[HostedCall] = []
     blocks: list[AnswerBlock] = []
     refused = False
@@ -399,7 +437,10 @@ def _parse_response(body: bytes, limits: WebLimits) -> Parsed[WebResult]:
                 projected = FindInPageAction(action.url, action.pattern)
             hosted.append(HostedCall(output_index, item.id, projected, item.status))
             failed |= item.status == "failed"
-            incomplete |= item.status != "completed" and item.status != "failed"
+            incomplete |= output_index not in ignored and item.status not in {
+                "completed",
+                "failed",
+            }
         elif isinstance(item, _Message):
             incomplete |= item.status != "completed"
             for content_index, content in enumerate(item.content):
@@ -455,7 +496,9 @@ def _parse_response(body: bytes, limits: WebLimits) -> Parsed[WebResult]:
         outcome = "evidence"
     else:
         raise _invalid_response()
-    observation = WebObservation(limits, len(calls), completed, searches, outcome)
+    observation = WebObservation(
+        limits, len(calls), completed, searches, outcome, len(ignored)
+    )
     value: WebResult
     if reason is not None:
         value = ResearchUnavailable(reason, calls, observation)

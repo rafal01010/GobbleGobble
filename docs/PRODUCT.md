@@ -1,5 +1,7 @@
 # GobbleGobble product and delivery contract
 
+The goal is a complete, high-quality application. On 2026-10-24 the user removed legal clearance as a project completion gate. Google reviews remain mandatory and primary, using the demonstrated anonymous route. Wikivoyage is excluded. Attribution, privacy, explicit retention decisions and all technical quality gates remain required.
+
 This document records the agreed first version for GG-001.01. It describes required behavior, not capabilities already available. GG-001.01 is implemented, awaiting section verification at GG-003. Application delivery requires the real-browser acceptance walkthrough at GG-025.
 
 ## Purpose
@@ -27,6 +29,8 @@ Results contain up to three main recommendations and two to four worthwhile runn
 Menus and prices are optional. An exact dish, menu item, or price must have supporting evidence. Suggested food inferred from cuisine or other place evidence must be labeled as inference. The result must not present an inferred suggestion as a confirmed menu item. Missing optional details remain explicit rather than become invented facts.
 
 ## Reviews and complaints
+
+Google reviews are a primary, integral source for relevant matched places. The app normally attempts the selected anonymous Google review path, independently of its geography provider. Places with zero Google reviews remain eligible. An empty or omitted sample, no confident branch match, restricted use, or provider/access failure triggers labeled permitted fallback rather than rejection or fabricated reviews. Fallback retains its own source identity and does not silently replace working Google access. Google review display, model use, attribution and retention follow [the Google-review contract](GOOGLE_REVIEWS.md). Real primary retrieval and fallback behavior both require acceptance evidence. GG-009.01B completed early access and review-to-model feasibility assessment before provider-specific integration. If Google is not usable, report a concrete alternative/source decision or blocker before building around it; a display-only integration does not establish the intended reasoning capability.
 
 Mixed reviews remain eligible, with relevant complaints visible to the person choosing. Uniformly bad reviews can justify exclusion only when the evidence supports that conclusion. A small, selected, or biased negative sample alone does not establish that a place's reviews are uniformly bad. Results must state relevant sample limitations and distinguish observed complaints from a claim about all reviewers. The operational exclusion criterion remains work for GG-009 and GG-021.
 
@@ -79,6 +83,7 @@ Each target below identifies the single contract paragraph under that heading. T
 | Why to go and what food to get | [Recommendation results](#recommendation-results) |
 | Menu/price optional and food inference clearly distinguished | [Food and price claims](#food-and-price-claims) |
 | New/unreviewed places remain eligible | [Discovery](#discovery) |
+| Google reviews are a primary integral source with fallback for absent/unavailable reviews | [Reviews and complaints](#reviews-and-complaints) |
 | Mixed reviews remain eligible and complaints are shown | [Reviews and complaints](#reviews-and-complaints) |
 | Uniformly bad review exclusion respects actual sample limits | [Reviews and complaints](#reviews-and-complaints) |
 | Finite food preferences appear after results and derive from research | [Food refinement](#food-refinement) |

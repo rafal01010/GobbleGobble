@@ -380,3 +380,113 @@ def test_attempt_cannot_cross_event_loops(settings: Settings) -> None:
             _ = attempt.receipts
 
     asyncio.run(inspect())
+
+
+@pytest.mark.asyncio
+async def test_minimized_google_review_lineage_is_narrowly_admitted(
+    settings: Settings,
+) -> None:
+    attempt = AttemptCalls(settings, Bounds(max_requests=2, total_seconds=2.0))
+    invoked = 0
+
+    async def invoke(seconds: float) -> Parsed[int]:
+        nonlocal invoked
+        invoked += 1
+        return Parsed(7)
+
+    allowed = await attempt.run(
+        research(input_sources=("geoapify_geography", "minimized_google_reviews")),
+        invoke,
+    )
+    assert isinstance(allowed, Completed) and allowed.value == 7
+    assert allowed.receipt.input_sources == (
+        "geoapify_geography",
+        "minimized_google_reviews",
+    )
+    for source in ("ordinary_google", "grounding_lite", "unknown_publisher"):
+        blocked = await attempt.run(
+            research(input_sources=("minimized_google_reviews", source)), invoke
+        )
+        assert (
+            blocked.receipt.outcome == "source_blocked" and not blocked.receipt.admitted
+        )
+    diagnostic = await attempt.run(
+        research(use="api_diagnostic", input_sources=("minimized_google_reviews",)),
+        invoke,
+    )
+    assert diagnostic.receipt.outcome == "source_blocked"
+    geographic_model = await attempt.run(
+        geographic(use="model_inference", input_sources=("minimized_google_reviews",)),
+        invoke,
+    )
+    assert geographic_model.receipt.outcome == "source_blocked"
+    assert invoked == 1
+
+
+@pytest.mark.asyncio
+async def test_reviews_use_independent_configuration_and_shared_accounting() -> None:
+    from app.core.settings import ReviewSettings
+
+    configured = ReviewSettings(
+        mode="test", review_provider="google_reviews", review_timeout_seconds=0.5
+    )
+    attempt = AttemptCalls(configured, Bounds(max_requests=1, total_seconds=2.0))
+
+    async def invoke(seconds: float) -> Parsed[int]:
+        assert 0 < seconds <= 0.5
+        return Parsed(9, Usage(requests=1))
+
+    review_spec = CallSpec(
+        capability="reviews", use="api_diagnostic", input_sources=("ordinary_google",)
+    )
+    result = await attempt.run(review_spec, invoke)
+    assert isinstance(result, Completed) and result.value == 9
+    assert result.receipt.provider == "google_reviews"
+    assert result.receipt.model_identity == "not_applicable"
+    assert attempt.review_settings == configured
+    assert len(attempt.receipts) == 1
+    assert (await attempt.run(review_spec, invoke)).receipt.outcome == "request_limit"
+    with pytest.raises(TypeError, match="review-only attempt"):
+        _ = attempt.settings
+
+
+@pytest.mark.asyncio
+async def test_google_review_provider_cannot_perform_model_inference(
+    settings: Settings,
+) -> None:
+    configured = settings.model_copy(
+        update={"review_provider": "google_reviews", "review_timeout_seconds": 1.0}
+    )
+    attempt = AttemptCalls(configured, Bounds(max_requests=1, total_seconds=2.0))
+
+    async def invoke(seconds: float) -> Parsed[int]:
+        pytest.fail("Google provider performed model inference")
+
+    blocked = await attempt.run(
+        CallSpec(
+            capability="reviews",
+            use="model_inference",
+            input_sources=("minimized_google_reviews",),
+        ),
+        invoke,
+    )
+    assert blocked.receipt.provider == "google_reviews"
+    assert blocked.receipt.outcome == "source_blocked" and not blocked.receipt.admitted
+    assert attempt.receipts == ()
+
+
+@pytest.mark.asyncio
+async def test_closed_adapter_failure_produces_failed_safe_receipt(
+    settings: Settings,
+) -> None:
+    from app.core.calls import CallFailure
+
+    attempt = AttemptCalls(settings, Bounds(max_requests=1, total_seconds=2.0))
+
+    async def invoke(seconds: float) -> Parsed[int]:
+        raise CallFailure("response_limit")
+
+    result = await attempt.run(geographic(), invoke)
+    assert result.receipt.outcome == "failed"
+    assert result.receipt.diagnostic == "response_limit"
+    assert result.receipt.admitted and result.receipt.usage is None

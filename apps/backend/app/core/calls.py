@@ -21,20 +21,24 @@ from pydantic import (
     model_validator,
 )
 
-from app.core.settings import Settings
+from app.core.settings import ReviewSettings, Settings
 
 Provider = Literal[
     "geoapify",
+    "google_reviews",
     "openai",
     "google_grounding_lite",
     "google_geocoding",
     "google_places",
     "google_routes",
 ]
-Capability = Literal["location", "discovery", "route", "web_research", "model"]
+Capability = Literal[
+    "location", "discovery", "route", "reviews", "web_research", "model"
+]
 Use = Literal["api_diagnostic", "model_inference"]
 InputSource = Literal[
     "geoapify_geography",
+    "minimized_google_reviews",
     "ordinary_google",
     "grounding_lite",
     "unknown_publisher",
@@ -50,7 +54,32 @@ Outcome = Literal[
     "source_blocked",
     "nested_call",
 ]
-Diagnostic = Literal["none", "unknown_failure", "invalid_response"]
+FailureDiagnostic = Literal[
+    "invalid_response",
+    "access_failure",
+    "response_limit",
+    "transport_failure",
+    "operation_timeout",
+]
+Diagnostic = Literal[
+    "none",
+    "unknown_failure",
+    "invalid_response",
+    "access_failure",
+    "response_limit",
+    "transport_failure",
+    "operation_timeout",
+]
+
+
+class CallFailure(Exception):
+    """An adapter failure containing only a closed diagnostic code."""
+
+    def __init__(self, diagnostic: FailureDiagnostic) -> None:
+        self.diagnostic = diagnostic
+        super().__init__(diagnostic)
+
+
 Seconds = Annotated[float, Field(gt=0, allow_inf_nan=False)]
 Count = Annotated[int, Field(ge=0)]
 _MODELS = TypeAdapter(ChatModel)
@@ -75,8 +104,9 @@ class Bounds(_Closed):
 class CallSpec(_Closed):
     """Declare every imported input origin. An empty tuple means none.
 
-    Model input requires accurate lineage, including mixed origins. This gate
-    grants no storage, tracing, attribution, or derived-output permission.
+    Model input requires accurate lineage, including mixed origins. Only the
+    conservative review minimizer's output is minimized_google_reviews. Raw
+    reviews remain ordinary_google. This gate grants no storage or tracing.
     """
 
     capability: Capability
@@ -176,7 +206,7 @@ class AttemptCalls:
     only when they finish or are cancelled.
     """
 
-    def __init__(self, settings: Settings, bounds: Bounds) -> None:
+    def __init__(self, settings: Settings | ReviewSettings, bounds: Bounds) -> None:
         bounds = Bounds.model_validate(bounds)
         self._loop = asyncio.get_running_loop()
         self._deadline = self._loop.time() + bounds.total_seconds
@@ -189,7 +219,17 @@ class AttemptCalls:
     @property
     def settings(self) -> Settings:
         """Return the immutable configuration used for this attempt's receipts."""
+        if not isinstance(self._settings, Settings):
+            raise TypeError("review-only attempt has no general settings")
         return self._settings
+
+    @property
+    def review_settings(self) -> ReviewSettings:
+        return ReviewSettings(
+            mode=self._settings.mode,
+            review_provider=self._settings.review_provider,
+            review_timeout_seconds=self._settings.review_timeout_seconds,
+        )
 
     @property
     def receipts(self) -> tuple[Receipt, ...]:
@@ -219,29 +259,39 @@ class AttemptCalls:
         self._check_loop()
         spec = CallSpec.model_validate(spec)
         provider: Provider
-        if spec.capability in {"model", "web_research"}:
-            provider = self._settings.web_provider
-            timeout = self._settings.model_timeout_seconds
+        if spec.capability == "reviews":
+            if (
+                self._settings.review_provider != "google_reviews"
+                or self._settings.review_timeout_seconds is None
+            ):
+                raise ValueError(
+                    "configure GG_REVIEW_PROVIDER and GG_REVIEW_TIMEOUT_SECONDS"
+                )
+            provider = "google_reviews"
+            timeout = self._settings.review_timeout_seconds
+        elif spec.capability in {"model", "web_research"}:
+            provider = self.settings.web_provider
+            timeout = self.settings.model_timeout_seconds
         else:
             providers: dict[Capability, Provider] = {
-                "location": self._settings.location_provider,
-                "discovery": self._settings.discovery_provider,
-                "route": self._settings.route_provider,
+                "location": self.settings.location_provider,
+                "discovery": self.settings.discovery_provider,
+                "route": self.settings.route_provider,
             }
             provider = providers[spec.capability]
-            timeout = self._settings.geographic_timeout_seconds
+            timeout = self.settings.geographic_timeout_seconds
         model: ChatModel | None = None
         identity: Literal["named", "omitted", "not_applicable"] = "not_applicable"
         if spec.model_role is not None:
             configured = (
-                self._settings.owner_model
+                self.settings.owner_model
                 if spec.model_role == "owner"
-                else self._settings.research_model
+                else self.settings.research_model
             )
             secrets = (
-                self._settings.openai_api_key,
-                self._settings.google_maps_api_key,
-                self._settings.geoapify_api_key,
+                self.settings.openai_api_key,
+                self.settings.google_maps_api_key,
+                self.settings.geoapify_api_key,
             )
             identity = "omitted"
             if not any(
@@ -288,7 +338,15 @@ class AttemptCalls:
             return Stopped(finish("nested_call"))
         if (
             (provider == "openai" or spec.use == "model_inference")
-            and any(source != "geoapify_geography" for source in spec.input_sources)
+            and any(
+                source != "geoapify_geography"
+                and not (
+                    source == "minimized_google_reviews"
+                    and provider == "openai"
+                    and spec.use == "model_inference"
+                )
+                for source in spec.input_sources
+            )
         ) or (provider.startswith("google_") and spec.use == "model_inference"):
             return Stopped(finish("source_blocked"))
         if started >= self._deadline:
@@ -333,6 +391,8 @@ class AttemptCalls:
                                 else Cost.model_validate(result.cost),
                             )
                             outcome, diagnostic = "success", "none"
+                    except CallFailure as error:
+                        diagnostic = error.diagnostic
                     except ValidationError:
                         diagnostic = "invalid_response"
         except asyncio.CancelledError:

@@ -26,6 +26,7 @@ LocationProvider = Literal["google_grounding_lite", "google_geocoding", "geoapif
 DiscoveryProvider = Literal["google_grounding_lite", "google_places", "geoapify"]
 RouteProvider = Literal["google_grounding_lite", "google_routes", "geoapify"]
 WebProvider = Literal["openai"]
+ReviewProvider = Literal["google_reviews"]
 ModelId = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 Seconds = Annotated[float, Field(gt=0, allow_inf_nan=False)]
 ConfigurationVariable = Literal[
@@ -34,6 +35,8 @@ ConfigurationVariable = Literal[
     "GG_DISCOVERY_PROVIDER",
     "GG_ROUTE_PROVIDER",
     "GG_WEB_PROVIDER",
+    "GG_REVIEW_PROVIDER",
+    "GG_REVIEW_TIMEOUT_SECONDS",
     "GG_OWNER_MODEL",
     "GG_RESEARCH_MODEL",
     "GG_GEOGRAPHIC_TIMEOUT_SECONDS",
@@ -49,6 +52,8 @@ _VARIABLES: dict[str, ConfigurationVariable] = {
     "discovery_provider": "GG_DISCOVERY_PROVIDER",
     "route_provider": "GG_ROUTE_PROVIDER",
     "web_provider": "GG_WEB_PROVIDER",
+    "review_provider": "GG_REVIEW_PROVIDER",
+    "review_timeout_seconds": "GG_REVIEW_TIMEOUT_SECONDS",
     "owner_model": "GG_OWNER_MODEL",
     "research_model": "GG_RESEARCH_MODEL",
     "geographic_timeout_seconds": "GG_GEOGRAPHIC_TIMEOUT_SECONDS",
@@ -72,6 +77,8 @@ class Settings(BaseSettings):
     discovery_provider: DiscoveryProvider
     route_provider: RouteProvider
     web_provider: WebProvider
+    review_provider: ReviewProvider | None = None
+    review_timeout_seconds: Seconds | None = None
     owner_model: ModelId = Field(repr=False)
     research_model: ModelId = Field(repr=False)
     geographic_timeout_seconds: Seconds
@@ -99,6 +106,18 @@ class Settings(BaseSettings):
     def _blank_secret(cls, value: object) -> object:
         text = value.get_secret_value() if isinstance(value, SecretStr) else value
         return None if isinstance(text, str) and not text.strip() else value
+
+
+class ReviewSettings(BaseSettings):
+    """Anonymous review-only configuration, independent of all credentials."""
+
+    model_config = SettingsConfigDict(
+        env_prefix="GG_", frozen=True, extra="forbid", hide_input_in_errors=True
+    )
+
+    mode: Mode
+    review_provider: ReviewProvider | None = None
+    review_timeout_seconds: Seconds | None = None
 
 
 @dataclass(frozen=True)
@@ -129,10 +148,27 @@ class SafeDiagnostics:
     openai_key_present: bool
     google_maps_key_present: bool
     geoapify_key_present: bool
+    review_provider: ReviewProvider | None = None
+    review_timeout_seconds: float | None = None
 
 
-def _dotenv_source(env_file: Path | str | None) -> DotEnvSettingsSource:
-    source = DotEnvSettingsSource(Settings, env_file=None)
+@dataclass(frozen=True)
+class ReviewDiagnostics:
+    mode: Mode
+    review_provider: ReviewProvider | None
+    review_timeout_seconds: float | None
+
+
+def review_diagnostics(settings: Settings | ReviewSettings) -> ReviewDiagnostics:
+    return ReviewDiagnostics(
+        settings.mode, settings.review_provider, settings.review_timeout_seconds
+    )
+
+
+def _dotenv_source(
+    env_file: Path | str | None, settings_type: type[BaseSettings] = Settings
+) -> DotEnvSettingsSource:
+    source = DotEnvSettingsSource(settings_type, env_file=None)
     if env_file is None:
         return source
     try:
@@ -149,7 +185,49 @@ def _dotenv_source(env_file: Path | str | None) -> DotEnvSettingsSource:
         raise ConfigurationError(
             (ConfigurationIssue("configuration", "invalid"),)
         ) from None
+    if settings_type is ReviewSettings:
+        source.env_vars = {
+            name: value
+            for name, value in source.env_vars.items()
+            if name in {"gg_mode", "gg_review_provider", "gg_review_timeout_seconds"}
+        }
     return source
+
+
+def load_review_settings(
+    *, mode: Mode, env_file: Path | str | None = _BACKEND_ENV
+) -> ReviewSettings:
+    """Load reviews without selecting geography, models, keys or billing."""
+    try:
+        values = (
+            _dotenv_source(env_file, ReviewSettings)()
+            | EnvSettingsSource(ReviewSettings)()
+        )
+        values["mode"] = mode
+        return ReviewSettings(**values)
+    except ValidationError as error:
+        issues = tuple(
+            dict.fromkeys(
+                ConfigurationIssue(
+                    _VARIABLES.get(str(item["loc"][0]), "configuration")
+                    if item["loc"]
+                    else "configuration",
+                    "missing" if item["type"] == "missing" else "invalid",
+                )
+                for item in error.errors(
+                    include_url=False, include_context=False, include_input=False
+                )
+            )
+        )
+        raise ConfigurationError(issues) from None
+    except OSError, UnicodeError:
+        raise ConfigurationError(
+            (ConfigurationIssue("configuration", "unreadable"),)
+        ) from None
+    except SettingsError:
+        raise ConfigurationError(
+            (ConfigurationIssue("configuration", "invalid"),)
+        ) from None
 
 
 def load_settings(
@@ -174,7 +252,7 @@ def load_settings(
             )
         )
         raise ConfigurationError(issues) from None
-    except (OSError, UnicodeError):
+    except OSError, UnicodeError:
         raise ConfigurationError(
             (ConfigurationIssue("configuration", "unreadable"),)
         ) from None
@@ -222,4 +300,6 @@ def safe_diagnostics(settings: Settings) -> SafeDiagnostics:
         openai_key_present=settings.openai_api_key is not None,
         google_maps_key_present=settings.google_maps_api_key is not None,
         geoapify_key_present=settings.geoapify_api_key is not None,
+        review_provider=settings.review_provider,
+        review_timeout_seconds=settings.review_timeout_seconds,
     )

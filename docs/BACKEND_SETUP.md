@@ -84,3 +84,11 @@ PY
 A successful command exits with code 0 and prints the explicit safe projection. It contains no credential values or model text. A configuration error prints recognized field names and fixed issue codes, then exits with code 1. Fix those fields and repeat the same command. This command checks local configuration only. It does not validate credentials against a service.
 
 Diagnostic mode permits missing credentials but still requires provider selections, model IDs, and timeouts. Test mode marks controlled caller configuration and supplies no fixtures. Pass either mode explicitly in Python. The [settings reference](SETTINGS.md) records file precedence, overrides, errors, and the implementation boundary. Broad configuration and live checks remain at GG-003.
+
+## Prepare anonymous review configuration
+
+GG-002.06A adds two independent settings to the example inventory. Set `GG_REVIEW_PROVIDER=google_reviews` and a finite positive `GG_REVIEW_TIMEOUT_SECONDS` when preparing the separately requested GG-003 gate. Keep the geography and model settings as configured. Reviews require no Google API key, billing, browser profile or cookies.
+
+Use `load_review_settings` for review-only preflight without geography or model credentials. Use general `load_settings` when the attempt shares review, geography and model calls. Neither loader contacts a service. `GoogleReviewClient.preflight()` reports a fixed missing-selection or missing-timeout error before it can transmit. See the [review probe reference](GOOGLE_REVIEW_PROBES.md) for the interface, bounds and retention decisions.
+
+The current task leaves the actual local `.env` unchanged. No review CLI exists yet. GG-002.08 introduces the bounded probe command; GG-003 owns behavioral and live verification.

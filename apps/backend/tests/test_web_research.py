@@ -102,6 +102,180 @@ def client_for(settings: Settings, body: dict[str, Any]) -> WebResearchClient:
     )
 
 
+def capped_payload() -> dict[str, Any]:
+    body = payload()
+    body["max_tool_calls"] = 2
+    first = body["output"][0]
+    second = deepcopy(first)
+    second["id"] = "second-search-private"
+    ignored = deepcopy(first)
+    ignored.update(id="ignored-search-private", status="searching")
+    body["output"][1:1] = [
+        second,
+        ignored,
+        {
+            "type": "reasoning",
+            "id": "private-reasoning",
+            "summary": [],
+            "status": "completed",
+        },
+    ]
+    return body
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("pending_status", ["searching", "in_progress"])
+async def test_completed_capped_response_preserves_ignored_attempt(
+    settings: Settings,
+    pending_status: str,
+) -> None:
+    captured: list[httpx.Request] = []
+    body = capped_payload()
+    body["output"][2]["status"] = pending_status
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        captured.append(request)
+        return httpx.Response(200, json=body)
+
+    result = await WebResearchClient(
+        attempt(settings),
+        limits=WebLimits(max_output_tokens=64, max_tool_calls=2),
+        test_transport=httpx.MockTransport(respond),
+    ).search("query", input_sources=())
+    assert isinstance(result, Completed)
+    assert isinstance(result.value, EvidenceFound)
+    assert [
+        (call.output_index, call.call_id, call.status)
+        for call in result.value.hosted_calls
+    ] == [
+        (0, "search-private", "completed"),
+        (1, "second-search-private", "completed"),
+        (2, "ignored-search-private", pending_status),
+    ]
+    assert result.value.blocks[0].output_index == 4
+    citation = result.value.blocks[0].citations[0]
+    assert (citation.start_index, citation.end_index, citation.title, citation.url) == (
+        0,
+        2,
+        "Exact private title  ",
+        "https://cited.invalid/raw?a=1",
+    )
+    observed = result.value.observation
+    assert (
+        observed.observed_tool_calls,
+        observed.completed_tool_calls,
+        observed.completed_search_actions,
+        observed.ignored_tool_calls,
+        observed.outcome,
+    ) == (3, 2, 2, 1, "evidence")
+    assert result.receipt.usage is not None
+    assert result.receipt.usage.requests == 1
+    assert len(captured) == 1
+    assert json.loads(captured[0].content)["max_tool_calls"] == 2
+
+
+@pytest.mark.asyncio
+async def test_capped_ignored_attempt_preserves_exact_no_evidence(
+    settings: Settings,
+) -> None:
+    body = capped_payload()
+    del body["output"][3]["status"]
+    body["output"][4]["content"] = [
+        {"type": "output_text", "text": "NO_SUPPORTED_EVIDENCE", "annotations": []}
+    ]
+    result = await WebResearchClient(
+        attempt(settings),
+        limits=WebLimits(max_output_tokens=64, max_tool_calls=2),
+        test_transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, json=body)
+        ),
+    ).search("query", input_sources=())
+    assert isinstance(result, Completed) and isinstance(result.value, NoEvidence)
+    assert result.value.blocks[0].text == "NO_SUPPORTED_EVIDENCE"
+    assert result.value.observation.outcome == "no_evidence"
+    assert result.value.observation.ignored_tool_calls == 1
+    assert result.value.hosted_calls[2].status == "searching"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "case",
+    [
+        "missing_echo",
+        "mismatched_echo",
+        "bool_echo",
+        "zero_echo",
+        "negative_echo",
+        "processed_overshoot",
+        "pending_before_cap",
+        "terminal_after_pending",
+        "incomplete",
+        "failed",
+        "duplicate_id",
+        "message_incomplete",
+        "message_running",
+        "reasoning_incomplete",
+        "reasoning_running",
+        "tool_failed",
+        "tool_incomplete",
+        "no_citations",
+        "bad_citation",
+    ],
+)
+async def test_capped_ignored_attempt_rejects_near_guard_responses(
+    settings: Settings, case: str
+) -> None:
+    body = capped_payload()
+    if case == "missing_echo":
+        del body["max_tool_calls"]
+    elif case.endswith("_echo"):
+        body["max_tool_calls"] = {
+            "mismatched_echo": 3,
+            "bool_echo": True,
+            "zero_echo": 0,
+            "negative_echo": -1,
+        }[case]
+    elif case == "processed_overshoot":
+        body["output"][2]["status"] = "completed"
+    elif case == "pending_before_cap":
+        body["output"][1]["status"] = "searching"
+    elif case == "terminal_after_pending":
+        terminal = deepcopy(body["output"][0])
+        terminal["id"] = "terminal-search-private"
+        body["output"].insert(3, terminal)
+    elif case in {"incomplete", "failed"}:
+        body["status"] = case
+    elif case == "duplicate_id":
+        body["output"][2]["id"] = body["output"][0]["id"]
+    elif case.startswith("message_"):
+        body["output"][4]["status"] = (
+            "incomplete" if case == "message_incomplete" else "in_progress"
+        )
+    elif case.startswith("reasoning_"):
+        body["output"][3]["status"] = (
+            "incomplete" if case == "reasoning_incomplete" else "in_progress"
+        )
+    elif case.startswith("tool_"):
+        body["output"][1]["status"] = case.removeprefix("tool_")
+    elif case == "no_citations":
+        body["output"][4]["content"][0]["annotations"] = []
+    elif case == "bad_citation":
+        body["output"][4]["content"][0]["annotations"][0]["end_index"] = 1000
+    result = await WebResearchClient(
+        attempt(settings),
+        limits=WebLimits(max_output_tokens=64, max_tool_calls=2),
+        test_transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, json=body)
+        ),
+    ).search("private query", input_sources=())
+    assert isinstance(result, Stopped)
+    assert (result.receipt.outcome, result.receipt.diagnostic) == (
+        "failed",
+        "invalid_response",
+    )
+    assert "private" not in json.dumps(result.receipt.safe_record())
+
+
 @pytest.mark.asyncio
 async def test_preserves_real_annotations_sources_positions_usage_and_request_policy(
     settings: Settings,
@@ -167,6 +341,7 @@ async def test_preserves_real_annotations_sources_positions_usage_and_request_po
     assert hosted.action.consulted_urls == ("https://consulted.invalid/raw",)
     assert result.value.source_permission == "unchecked"
     observed = result.value.observation
+    assert observed.ignored_tool_calls == 0
     assert (
         observed.observed_tool_calls,
         observed.completed_tool_calls,

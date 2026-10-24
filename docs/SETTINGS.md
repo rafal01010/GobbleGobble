@@ -4,7 +4,7 @@ GG-002.02 adds local settings and credential preflight in `apps/backend/app/core
 
 ## Sources and precedence
 
-The default file is `apps/backend/.env`, resolved relative to the settings module rather than the working directory. Process environment values override file values. There are no default provider selections, model IDs, or timeout values. The initializer does not load settings.
+The default file is `apps/backend/.env`, resolved relative to the settings module rather than the working directory. Process environment values override file values. There are no default provider selections, model IDs, or timeout values. GG-002.06A adds optional independent review fields and the credential-free `load_review_settings` entry point. The initializer does not load settings.
 
 `load_settings(mode=..., env_file=...)` accepts a different dotenv path. A relative override is relative to the caller's working directory. `env_file=None` disables file loading but still reads the process environment. An absent file is allowed when the environment supplies the required configuration. Unknown dotenv fields and invalid or unreadable files produce configuration errors. Unrelated process environment variables do not become settings.
 
@@ -12,14 +12,16 @@ This uses the installed [Pydantic settings source behavior](https://docs.pydanti
 
 ## Variables
 
-All names use the exact spelling below. `apps/backend/.env.example` contains the same inventory with commented, empty assignments. Copying the example selects no provider and supplies no credentials.
+The table describes general `load_settings` requirements unless a review-specific rule is stated. Review-only loading is described below. All names use the exact spelling below. `apps/backend/.env.example` contains the same inventory with commented, empty assignments. Copying the example selects no provider and supplies no credentials.
 
 | Variable | Accepted input | Requirement |
 |---|---|---|
 | `GG_LOCATION_PROVIDER` | `google_grounding_lite`, `google_geocoding`, or `geoapify` | Required in every mode. |
 | `GG_DISCOVERY_PROVIDER` | `google_grounding_lite`, `google_places`, or `geoapify` | Required in every mode. |
 | `GG_ROUTE_PROVIDER` | `google_grounding_lite`, `google_routes`, or `geoapify` | Required in every mode. |
-| `GG_WEB_PROVIDER` | `openai` | Required in every mode. |
+| `GG_WEB_PROVIDER` | `openai` | Required in every mode for general settings. |
+| `GG_REVIEW_PROVIDER` | `google_reviews` | Optional in general settings. Required by review-client preflight. |
+| `GG_REVIEW_TIMEOUT_SECONDS` | Finite number greater than zero, in seconds | Optional in general settings. Required by review-client preflight. |
 | `GG_OWNER_MODEL` | Nonblank model ID, with surrounding whitespace removed | Required in every mode. No model is selected by code. |
 | `GG_RESEARCH_MODEL` | Nonblank model ID, with surrounding whitespace removed | Required in every mode. No model is selected by code. |
 | `GG_GEOGRAPHIC_TIMEOUT_SECONDS` | Finite number greater than zero, in seconds | Required in every mode. Intended for geographic requests. |
@@ -48,7 +50,7 @@ Missing provider selections, model IDs, or timeouts raise `ConfigurationError` i
 
 `ConfigurationError.issues` contains recognized variable names and fixed issue codes. Its printable message omits submitted values, unknown key names, parser text, and chained exception output. File-level errors use the fixed `configuration` label. A failed live preflight raises an error rather than returning another mode.
 
-`safe_diagnostics(settings)` returns an explicit dataclass projection. It includes the resolved mode, provider identifiers, numeric timeouts, model-presence flags, and credential-presence flags. It omits model text and credential values. Generic settings dumps are not the diagnostic interface.
+`safe_diagnostics(settings)` returns an explicit dataclass projection. It includes the resolved mode, provider identifiers, numeric timeouts, model-presence flags, and credential-presence flags. It includes the optional review provider and timeout. `review_diagnostics(settings)` projects only mode, review provider and review timeout for review-only inspection. Both interfaces omit model text and credential values. Generic settings dumps are not the diagnostic interface.
 
 For example, a required but absent OpenAI key produces `OPENAI_API_KEY: missing`. An invalid dotenv file produces `configuration: invalid`. These examples describe the error contract, not the current local configuration.
 
@@ -61,6 +63,8 @@ This redacted diagnostic example replaces configured identifiers and numbers wit
 	"discovery_provider": "<selected discovery provider>",
 	"route_provider": "<selected route provider>",
 	"web_provider": "openai",
+	"review_provider": null,
+	"review_timeout_seconds": null,
 	"owner_model_configured": true,
 	"research_model_configured": true,
 	"geographic_timeout_seconds": "<configured positive seconds>",
@@ -98,3 +102,11 @@ The second example still requires selections, model IDs, and timeouts in the pro
 The [bounded call layer](CALLS.md) added in GG-002.03 resolves geographic/model timeouts from `Settings` and combines them with an explicit request allowance and total deadline. Bounds are caller arguments, with no additional environment variables or chosen limits. Configuring settings alone invokes no calls. GG-002.04 through GG-002.08 add provider clients, SDK wiring, and the probe command. Loading settings does not disable SDK tracing.
 
 Local readiness proves neither key validity nor billing, enabled APIs, quota, model availability, route coverage, or source permission. Google choices remain conditional under the [integration findings](INTEGRATIONS.md). GG-003 retains the missing-key, environment-override, effective-settings, and bounded live verification cases. Model access, operational timeout choices, costs, and timings remain unverified until that gate.
+
+## Independent anonymous reviews
+
+GG-002.06A adds `ReviewSettings` and `load_review_settings(mode=..., env_file=...)`. The loader uses the same dotenv path, environment precedence, fixed errors and explicit modes. It reads review settings without requiring geography, web, model or credential configuration. Known non-review dotenv fields are ignored for this entry point, while unknown names or a malformed file still fail. Review-provider selection and timeout remain optional during loading so diagnostic inspection can report an unconfigured source. `GoogleReviewClient.preflight()` requires both before transmission.
+
+Anonymous reviews need no Google key, account, billing or cookies. Selecting `google_reviews` does not add a geographic credential requirement. General `load_settings` keeps its existing geography and OpenAI preflight. A review-only `AttemptCalls` accepts `ReviewSettings` and can execute only review calls. Shared attempts use the general settings plus the two review fields. The [review probe reference](GOOGLE_REVIEW_PROBES.md) records the client contract and prepared gate scenarios.
+
+This task does not change the local `.env`, provider selections or model IDs. Current local development models remain Luna by the recorded user choice. Loading configuration invokes no network or model operation. Behavioral configuration checks and live review access remain at GG-003.

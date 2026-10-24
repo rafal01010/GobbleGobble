@@ -1,10 +1,12 @@
 # Bounded calls and receipt reference
 
+The goal is a complete, high-quality application. On 2026-10-24 the user removed legal clearance as a project completion gate. Google reviews remain mandatory and primary, using the demonstrated anonymous route. Wikivoyage is excluded. Attribution, privacy, explicit retention decisions and all technical quality gates remain required. GG-002.06A adds narrow admission for minimized anonymous Google review evidence. Ordinary Google, Grounding Lite and unknown publisher model inputs remain blocked. GG-009.01B completion does not mean that integration is implemented.
+
 GG-002.03 adds `apps/backend/app/core/calls.py`. Future geographic and OpenAI adapters use one `AttemptCalls` instance to share a request allowance and total deadline. This module implements no transport, provider client, probe, SDK runner, or persistence. It reads no configuration file and selects no provider or model. GG-002.03 is implemented, awaiting section verification at GG-003.
 
 ## Interface
 
-`AttemptCalls(settings, Bounds(max_requests=..., total_seconds=...))` starts an attempt inside a running asyncio event loop. `settings` is the existing typed result of `load_settings`. Both bounds are explicit caller inputs. There are no default allowances or new environment variables. The probe command will declare its inventory in GG-002.08.
+`AttemptCalls(settings, Bounds(max_requests=..., total_seconds=...))` starts an attempt inside a running asyncio event loop. `settings` is the existing typed result of `load_settings`. Both bounds are explicit caller inputs. There are no default attempt allowances. GG-002.06A adds independent review configuration described below. The probe command will declare its inventory in GG-002.08.
 
 GG-002.04 adds a read-only `settings` property returning that frozen configuration. The [geographic client](GEOGRAPHY_PROBES.md) derives its provider and credential from this exact object, keeping its request identity aligned with receipts while sharing the attempt allowance.
 
@@ -14,9 +16,9 @@ These are the closed request vocabularies:
 
 | Field | Values | Meaning |
 |---|---|---|
-| `capability` | `location`, `discovery`, `route`, `web_research`, `model` | Selects the configured provider and timeout. |
+| `capability` | `location`, `discovery`, `route`, `reviews`, `web_research`, `model` | Selects the configured provider and timeout. |
 | `use` | `api_diagnostic`, `model_inference` | Declares diagnostic-only response handling or intended model use. |
-| `input_sources` | A tuple containing `geoapify_geography`, `ordinary_google`, `grounding_lite`, or `unknown_publisher` | Classifies every imported content source. An empty tuple explicitly declares no imported source content. |
+| `input_sources` | A tuple containing `geoapify_geography`, `minimized_google_reviews`, `ordinary_google`, `grounding_lite`, or `unknown_publisher` | Classifies every imported content source. An empty tuple explicitly declares no imported source content. |
 | `model_role` | `owner`, `research`, or absent | Required for model and web-research capabilities. Absent for geographic calls. |
 
 Location, discovery, and route calls resolve their respective provider selections and use `geographic_timeout_seconds`. Web research and model calls use OpenAI and `model_timeout_seconds`. The model role resolves the exact configured model. Safe receipt naming does not alter that value. Receipt identity describes the requested model, not a provider-reported resolved model or proof of model availability.
@@ -82,7 +84,7 @@ These are the terminal outcome values:
 | `source_blocked` | The declared source use was prohibited. The callback was not invoked. |
 | `nested_call` | A callback attempted a nested call. The nested callback was not invoked. |
 
-Fixed diagnostics are `none`, `unknown_failure`, and `invalid_response`. Exception objects, exception strings, HTTP bodies, response IDs, URLs, authorization headers, prompts, food/review text, and precise locations never enter the projection. A local UUID is generated for each receipt. It is not a provider request identifier.
+Fixed diagnostics are `none`, `unknown_failure`, `invalid_response`, `access_failure`, `response_limit`, `transport_failure` and `operation_timeout`. GG-002.06A adds `CallFailure` for adapters to report one of the closed failure codes without leaking exception content. Exception objects, exception strings, HTTP bodies, response IDs, URLs, authorization headers, prompts, food/review text, and precise locations never enter the projection. A local UUID is generated for each receipt. It is not a provider request identifier.
 
 This schema-only example shows an omitted model identity and unavailable measurements. Angle-bracket descriptions replace identifiers and numbers. It is not a valid serialized receipt or a live-call result:
 
@@ -115,6 +117,7 @@ The [integration findings](INTEGRATIONS.md#permission-findings) remain the polic
 | Google geographic output | API diagnostics only while model compatibility and output reuse remain unresolved. |
 | Ordinary Google or Grounding Lite content entering a model | Blocked, including when OpenAI is the called provider. |
 | Unknown publisher content entering a model | Blocked. Hosted search access does not authorize direct text re-ingestion. |
+| Minimized anonymous Google reviews entering OpenAI inference | Allowed under the current project source decision with explicit `minimized_google_reviews` lineage. Raw ordinary Google input remains blocked. |
 | Geoapify geography entering a model | Allowed under the documented inference finding. Attribution and underlying license duties remain. |
 | Hosted OpenAI web research | Allowed as a capability. Returned claims still require source checks before publication or retention. |
 | Mixed imported sources | Every source must be permitted. One restricted source blocks the call. |
@@ -128,3 +131,13 @@ The module has no content sink or trace exporter. It neither enables nor configu
 GG-002.03 passed source review and narrow import, syntax, Ruff lint/format, mypy, and document-artifact checks. `apps/backend/tests/test_calls.py` contains offline behavioral cases for the section gate. Those cases have not been executed during this child.
 
 At GG-003, run the offline cases from `apps/backend`, inspect timeout/failure/redaction behavior, then verify the prepared adapters under that gate's bounded live authorization. The gate must also establish actual account access, model identity, effective configuration, retry suppression, SDK tracing/storage controls, provider-side restrictions, usage, timing, and any unavailable measurements. No live calls or provider/model selections are established by this module.
+
+## Anonymous review calls
+
+GG-002.06A adds provider `google_reviews` and capability `reviews`. They resolve `GG_REVIEW_PROVIDER` and `GG_REVIEW_TIMEOUT_SECONDS` independently of geographic selections. An attempt accepts either general `Settings` or review-only `ReviewSettings`. The latter needs no geography, model or credentials and rejects non-review calls. The existing `settings` property remains the general-settings interface. `review_settings` projects only review configuration.
+
+The [Google review client](GOOGLE_REVIEW_PROBES.md) admits each page GET separately. Pagination, local sample limits, byte limits and partial outcomes belong to that client. A successful receipt means the individual response was accepted, not that all reviews were retrieved. The sample also reports availability, termination, duplicate and invalid-row counts. Failed pages must retain failed receipts rather than a synthetic successful empty value.
+
+The new `minimized_google_reviews` lineage is admitted to OpenAI model inference. Callers must obtain it from the conservative in-memory minimizer and preserve accurate lineage. Mixed restricted sources still block admission. This change does not admit ordinary Google geographic output, Grounding Lite or unknown publisher content, and does not grant storage or tracing access.
+
+The current local review configuration is not changed by this task. No network or model request runs, and behavioral call-layer cases remain prepared for GG-003.

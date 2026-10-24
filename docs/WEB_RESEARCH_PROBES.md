@@ -1,6 +1,6 @@
 # Web-research probe reference
 
-GG-002.06 prepares `apps/backend/app/providers/web_research.py` for OpenAI Responses web search. It returns ephemeral answer blocks, actual URL citations, and observed hosted-search actions through the existing [bounded call layer](CALLS.md). Implementation completion is separate from section verification at GG-003. No live account, model, source, or local configuration is verified yet.
+GG-002.06 prepares `apps/backend/app/providers/web_research.py` for OpenAI Responses web search. It returns ephemeral answer blocks, actual URL citations, and observed hosted-search actions through the existing [bounded call layer](CALLS.md). Implementation completion is separate from section verification at GG-003. The early GG-009.01B investigation adds bounded live observations and a narrow wire-contract repair, recorded in the [review-source feasibility decision](REVIEW_FEASIBILITY.md). The Section A gate remains unverified.
 
 This API client supplies research for the feasibility probe. It does not capture a normal ChatGPT answer or establish the [comparison baseline](EVALUATION.md). The actual Agents SDK owner/tool-agent interaction remains GG-002.07. The executable probe command remains GG-002.08.
 
@@ -48,7 +48,7 @@ The request has these fixed controls:
 
 The question is separate from fixed instructions requesting attributable evidence with actual citations. When supported evidence is unavailable, the instructions permit the exact standalone `NO_SUPPORTED_EVIDENCE` sentinel. There is no conversation, previous response, location-default override, direct publisher fetch, or response polling.
 
-The [official web-search guide](https://developers.openai.com/api/docs/guides/tools-web-search) describes live access, required search, citation annotations, and consulted sources. The [Responses command reference](https://developers.openai.com/api/reference/cli/resources/responses/methods/create) documents the hosted-call and output-token ceilings. The installed generated OpenAI API types were also inspected. Compatibility of this complete request with the configured model remains a live gate check.
+The [official web-search guide](https://developers.openai.com/api/docs/guides/tools-web-search) describes live access, required search, citation annotations, and consulted sources. The [Responses command reference](https://developers.openai.com/api/reference/cli/resources/responses/methods/create) documents the hosted-call and output-token ceilings. The installed generated OpenAI API types were also inspected. GG-009.01B observed one parsed success with the configured `gpt-6.1-sol` request. Full gate verification remains pending.
 
 One admitted call consumes one shared application-request slot. The hosted-call ceiling separately limits built-in tool calls; it does not count or bound every provider-internal fetch. Observed hosted actions remain separate from application transmissions. Query characters, output tokens, response bytes, and elapsed time are bounded. These controls do not guarantee a monetary ceiling or a provider-side stop after local cancellation.
 
@@ -73,6 +73,10 @@ An ordinary uncited narrative, missing actual search, unsupported semantic varia
 
 The result also carries ephemeral observations of configured limits and actual hosted-call counts. They do not define another persistence interface. Provider input/output token usage is retained only when supplied and validated. `Usage.requests=1` describes the observed application transmission, never a hosted search count. Missing usage remains unknown. Cost is not invented.
 
+`max_tool_calls` bounds processed built-in calls. A completed provider response can also include a trailing attempt that the provider ignored at that limit. The [Responses contract](https://developers.openai.com/api/reference/resources/responses/methods/create) and the installed SDK describe ignored attempts beyond the processed-call ceiling.
+
+The parser recognizes this case only when the response is completed, message/reasoning states are complete, the returned cap exactly matches the caller's cap, the first cap-sized set of hosted records is completed, all remaining hosted records are nonterminal, and IDs are unique. Other unfinished work and excess completed calls retain the existing rejection rules. The actual records and statuses remain unchanged. `WebObservation.ignored_tool_calls` reports the recognized ignored count and defaults to zero. `observed_tool_calls` still counts every returned record. Ignored records are not evidence of completed research or additional consulted sources. A subsequent live attempt exposed an unhandled wire shape. An ignored `find_in_page` action without a URL is rejected by field validation before suffix classification. This remains `Stopped` with `invalid_response`; it is not accepted as usable research. The focused repair does not cover every possible ignored action.
+
 ## Source restrictions and diagnostics
 
 The [integration findings](INTEGRATIONS.md#permission-findings) remain authoritative. Evidence has an explicit unchecked source-permission marker. Hosted search access does not authorize publisher scraping, raw-page archival, publication, or downstream text re-ingestion. This client provides no permission-clearing mechanism or content sink. Publication and further model use require the scheduled source checks.
@@ -86,3 +90,5 @@ A later UI displaying web-derived findings must preserve visible, clickable inli
 Prepared synthetic cases belong in `apps/backend/tests/test_web_research.py`. Their execution, the existing call/geographic cases, real response inspection, useful restaurant evidence, source-link and multilingual-offset checks, effective local settings, account/model/tool access, usage, timing, redaction, and cost availability remain GG-003. No actual secret configuration or publisher permission is established by this implementation.
 
 The plan record lists the task-local static checks actually run. No behavioral test, broad suite, build, browser check, provider call, or model call runs during this child. GG-002.07 and all later tasks remain separate requests.
+
+The later GG-009.01B repair has a failing-before regression for two completed searches plus a trailing searching record under an echoed limit of two. Its focused run passes 32 cases, with 50 deselected. Guard controls retain rejection for ambiguous echoes, true processed-call overshoot, premature pending work, malformed citations, and nonterminal responses. Ruff and mypy pass for the changed provider and test file. These task-local diagnostics do not replace GG-003's broader verification.
