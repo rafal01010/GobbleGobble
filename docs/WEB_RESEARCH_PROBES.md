@@ -26,7 +26,7 @@ if isinstance(result, Completed) and isinstance(result.value, EvidenceFound):
 	hosted_calls = result.value.hosted_calls
 ```
 
-`search` requires a nonblank question of at most 2,000 characters and an explicit tuple of imported input origins. An empty tuple declares no imported source content. A question incorporating Geoapify geography declares `geoapify_geography`. Imported Google or unknown-publisher content remains blocked by the shared source gate. The adapter trusts accurate lineage declarations, as the existing call contract requires.
+`search` requires a nonblank question of at most 2,000 characters and an explicit tuple of imported input origins. An empty tuple declares no imported source content. A question incorporating Geoapify geography declares `geoapify_geography`. GG-002.06A also admits the review minimizer's declared `minimized_google_reviews` lineage to OpenAI inference. Ordinary Google, Grounding Lite and unknown-publisher inputs remain blocked by the shared source gate. The adapter trusts accurate lineage declarations, as the existing call contract requires.
 
 `WebLimits` requires integer `max_output_tokens` in 16 through 4,096 and `max_tool_calls` in 1 through 4. Booleans are invalid limits. The caller supplies both values; these are ceilings rather than chosen local configuration.
 

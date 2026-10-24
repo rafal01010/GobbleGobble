@@ -101,7 +101,7 @@ The second example still requires selections, model IDs, and timeouts in the pro
 
 The [bounded call layer](CALLS.md) added in GG-002.03 resolves geographic/model timeouts from `Settings` and combines them with an explicit request allowance and total deadline. Bounds are caller arguments, with no additional environment variables or chosen limits. Configuring settings alone invokes no calls. GG-002.04 through GG-002.08 add provider clients, SDK wiring, and the probe command. Loading settings does not disable SDK tracing.
 
-Local readiness proves neither key validity nor billing, enabled APIs, quota, model availability, route coverage, or source permission. Google choices remain conditional under the [integration findings](INTEGRATIONS.md). GG-003 retains the missing-key, environment-override, effective-settings, and bounded live verification cases. Model access, operational timeout choices, costs, and timings remain unverified until that gate.
+Local readiness proves neither key validity nor billing, enabled APIs, quota, model availability, route coverage, or source permission. Earlier [bounded experiments](REVIEW_FEASIBILITY.md#actual-evidence-and-experiment-accounting) observed Sol-based OpenAI access and Geoapify location/discovery, and recorded timings and usage. Those receipts do not validate the current Luna models, routes or application-wide operating limits. GG-003 retains the missing-key, environment-override, effective-settings and remaining live verification cases. The selected anonymous Google review path requires no Google credential or billing; conditional API alternatives remain documented in the [integration findings](INTEGRATIONS.md).
 
 ## Independent anonymous reviews
 

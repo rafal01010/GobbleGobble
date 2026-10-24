@@ -2,7 +2,7 @@
 
 Google reviews are a primary, integral source in GobbleGobble. The selected path uses bounded anonymous retrieval demonstrated through YasogaN. Google billing is excluded. Places with no reviews remain eligible, and absent or unavailable Google evidence triggers labeled fallback. This contract describes required behavior; the reusable client is prepared, while production integration and fallback remain unimplemented.
 
-The [feasibility decision](REVIEW_FEASIBILITY.md) completes GG-009.01B using actual package extraction and the specifically approved Google-to-model pilot. The user removed legal clearance as a completion gate and reaffirmed full application quality. Historical commercial findings remain informational. GG-002.06A prepares branch matching over supplied candidates, bounded retrieval and narrow admission for minimized anonymous review evidence. The [probe reference](GOOGLE_REVIEW_PROBES.md) records its configuration, limits and retention boundary. Behavioral and live verification remain at GG-003. Google stays primary, independent sources supplementary only, and Wikivoyage excluded.
+The [feasibility decision](REVIEW_FEASIBILITY.md) completes GG-009.01B using actual package extraction and the specifically approved Google-to-model pilot. The user removed legal clearance as a completion gate and reaffirmed full application quality. Historical commercial findings remain informational. GG-002.06A completed branch matching over supplied candidates, bounded retrieval and narrow admission for minimized anonymous review evidence. Later two-branch comparisons exercised the prepared client, and the user selected it alone without an alternate Google scraper. The [probe reference](GOOGLE_REVIEW_PROBES.md) records configuration, limits, retention and comparison evidence. Full behavioral and live verification remain at GG-003. Google stays primary, independent sources supplementary only, and Wikivoyage excluded.
 
 ## Primary source and fallback
 
@@ -67,7 +67,7 @@ The cited service terms apply to non-EEA billing accounts. EEA billing accounts 
 | GG-014.05 and GG-015 | Display source-aware details and verify attribution, availability states and fresh reacquisition through the browser. |
 | GG-019 and GG-025 | Verify recovery and final delivery without retaining prohibited content or hiding a missing Google integration. |
 
-GG-009.01B is complete, and later tasks retain their own implementation and verification conditions. GG-002.06A prepares the client without live calls. Production fallback remains GG-009.01C. Existing legal findings remain historical under the current project requirements. API-specific constraints in this document apply if that API is used; they are not the selected anonymous route contract.
+GG-009.01B and GG-002.06A are complete. The latter prepared the client without live calls; the separately authorized comparisons ran afterward. Later tasks retain their own implementation and verification conditions. Production independent-evidence fallback remains GG-009.01C. Existing legal findings remain historical under the current project requirements. API-specific constraints in this document apply if that API is used; they are not the selected anonymous route contract.
 
 ## Commercial feasibility continuation
 

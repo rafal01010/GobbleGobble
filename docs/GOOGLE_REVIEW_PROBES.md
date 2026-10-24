@@ -1,12 +1,12 @@
 # Google review probe reference
 
-GG-002.06A prepares `app/providers/google_reviews.py` for the live feasibility gate. It is implemented, awaiting section verification at GG-003. No review or model calls run during this child. The [source contract](GOOGLE_REVIEWS.md) records the Google-primary requirement and current project policy.
+GG-002.06A completed `app/providers/google_reviews.py` for the live feasibility gate. No review or model calls ran during that child. Later separately authorized comparisons exercised the client for Toyo Eatery and Ippei Honten, as recorded below. Full section verification remains GG-003. The [source contract](GOOGLE_REVIEWS.md) records the Google-primary requirement and current project policy.
 
 ## Access path and ownership
 
 The client uses the anonymous Google `GetLocalBoqProxy` route demonstrated during GG-009.01B. It adapts the installed YasogaN `google-maps-review-scraper` 3.1.0 request layout and field extraction into Python and HTTPX. The [third-party notice](THIRD_PARTY_NOTICES.md) preserves the upstream MIT license. No Node runtime, browser profile, API key, Google billing account or cookie is required.
 
-The package itself is not the production dependency. Its empty-result defaults, silent partial arrays, duplicate pagination and accumulated-record page option do not provide the required failure semantics or bounds. The Python client owns those decisions. The anonymous protocol is undocumented by Google and may change. The historical package receipt proves access for its observed branch, not the new adapter's live reliability.
+The package itself is not the production dependency. Its empty-result defaults, silent partial arrays, duplicate pagination and accumulated-record page option do not provide the required failure semantics or bounds. The Python client owns those decisions. The anonymous protocol is undocumented by Google and may change. The later two-branch comparison demonstrates bounded access through this adapter, without establishing broad reliability or completing GG-003.
 
 ## Temporary signed-in Pro comparison
 
