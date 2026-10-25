@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import re
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, ClassVar, Literal
@@ -189,6 +190,10 @@ class ReviewSample:
 class FoodPassage:
     label: str
     text: str = field(repr=False)
+    foods: tuple[str, ...] = field(repr=False)
+    source_review_index: int = field(repr=False)
+    source_start: int = field(repr=False)
+    source_end: int = field(repr=False)
 
 
 @dataclass(frozen=True)
@@ -223,7 +228,8 @@ class MinimizedGoogleReviewSample:
             "selected_words": self.selected_words,
             "limitations": list(self.limitations),
             "passages": [
-                {"label": item.label, "text": item.text} for item in self.passages
+                {"label": item.label, "text": item.text, "foods": list(item.foods)}
+                for item in self.passages
             ],
         }
 
@@ -869,40 +875,168 @@ _VOCABULARY = _FOOD | frozenset(
         "a an the and or but of to for from with without in on at as was were is are had has have it its this that these those all each every very quite really so just also too more most less some both here actually especially overall not no only texture textures taste tastes tasted delicious tasty good great excellent amazing nice balanced fresh crispy crisp tender soft rich light sweet sour savory savoury spicy salty smoky bland bitter smooth warm hot cold grilled fried cooked cooking baked roasted smoked perfectly well beautifully presentation combination combinations interesting unique lovely wonderful superb exceptional outstanding enjoyable satisfying quality portion portions small generous complex subtle bold creative delicate simple thoughtfully prepared done moist dry crunchy crust center chocolate fruit fruits local seasonal ingredients ingredient appetizing innovative fantastic incredible decent average unpleasant disappointing underwhelming overpowering overwhelming greasy oily burnt stale freshness balance delightful deliciously absolutely delightfully better best s",
     )
 )
+_CONCRETE_FOOD = re.compile(
+    r"\b(?:tasting menu|bread|desserts?|pork|rice|fish|beef|chicken|coffee|seafood|vegetables?|soup)\b",
+    re.IGNORECASE,
+)
+_POSITIVE = (
+    r"delicious|tasty|good|great|excellent|amazing|nice|balanced|fresh|crispy|crisp|"
+    r"tender|soft|rich|savory|savoury|smooth|lovely|wonderful|superb|exceptional|"
+    r"outstanding|enjoyable|satisfying|delicate|moist|crunchy|appetizing|fantastic|"
+    r"incredible|delightful"
+)
+_POSITIVE_BEFORE_FOOD = re.compile(
+    rf"\b(?:{_POSITIVE})(?:\s+(?:very|really|perfectly|beautifully|prepared|"
+    rf"grilled|fried|cooked|baked|roasted|smoked|{_POSITIVE}))*\s+$",
+    re.IGNORECASE,
+)
+_POSITIVE_AFTER_FOOD = re.compile(
+    rf"^\s+(?:was|were|is|are|had|has|have)\s+"
+    rf"(?:(?:a|an|the|very|quite|really|so|especially|absolutely)\s+)*"
+    rf"(?:{_POSITIVE})\b",
+    re.IGNORECASE,
+)
+_UNSAFE_CONTEXT = re.compile(
+    r"\b(?:not|no|never|nor|neither|without|hardly|barely|scarcely|only|lack|lacks|"
+    r"lacking|missing|but|however|although|though|yet|except|despite|instead|rather|"
+    r"nevertheless|whereas|if|unless|when|until|provided|assuming|otherwise|"
+    r"would|could|might|may|should|can|must|perhaps|maybe|possibly|apparently|"
+    r"supposedly|allegedly|seems|seemed|seem|appears|appeared|uncertain|"
+    r"said|says|say|told|claimed|claims|according|heard|described|called|reported|"
+    r"read|recommended|recommend|promised|promise|wish|hope|hoped|imagine|"
+    r"better|best|more|less|than|compared|unlike|bland|bitter|dry|greasy|oily|"
+    r"burnt|stale|unpleasant|disappointing|underwhelming|overpowering|overwhelming|"
+    r"bad|awful|terrible|disgusting|inedible|unsafe|mediocre|overrated|false|"
+    r"sarcasm|sarcastic|kidding|joking|doubt|doubtful|"
+    r"i|my|mine|we|our|ours|us|you|your|yours|he|his|she|her|hers|they|their|"
+    r"theirs|wife|husband|child|children|family|mother|father|daughter|son|"
+    r"surgery|chemotherapy|cancer|anaphylaxis|allergy|allergic|hospital|treatment|"
+    r"diagnosis|pregnant|pregnancy|medication|illness|sick|vomiting|diarrhea)\b",
+    re.IGNORECASE,
+)
+_SENTENCE_BOUNDARY = re.compile(r"(?<=[.!?])[\"'\u201d\u2019]*\s+|\n+")
+_CLAUSE_BOUNDARY = re.compile(r"[,;:]")
+_QUOTE_END = {'"': '"', "'": "'", "\u201c": "\u201d", "\u2018": "\u2019"}
+
+
+def _quoted_spans(text: str) -> tuple[tuple[int, int], ...]:
+    spans: list[tuple[int, int]] = []
+    start = 0
+    closing: str | None = None
+    for index, character in enumerate(text):
+        if (
+            character in {"'", "\u2019"}
+            and 0 < index < len(text) - 1
+            and text[index - 1].isalpha()
+            and text[index + 1].isalpha()
+        ):
+            continue
+        if closing is not None:
+            if character == closing:
+                spans.append((start, index + 1))
+                closing = None
+        elif character in _QUOTE_END:
+            start = index
+            closing = _QUOTE_END[character]
+    if closing is not None:
+        spans.append((start, len(text)))
+    return tuple(spans)
+
+
+def _text_spans(text: str, boundary: re.Pattern[str]) -> Iterator[tuple[int, int]]:
+    start = 0
+    for end in (*[match.start() for match in boundary.finditer(text)], len(text)):
+        raw = text[start:end]
+        left = start + len(raw) - len(raw.lstrip())
+        right = end - len(raw) + len(raw.rstrip())
+        if left < right:
+            yield left, right
+        match = boundary.match(text, end)
+        start = match.end() if match else end
+
+
+def _permitted_foods(text: str) -> tuple[str, ...]:
+    return tuple(
+        dict.fromkeys(
+            match.group()
+            for match in _CONCRETE_FOOD.finditer(text)
+            if _POSITIVE_BEFORE_FOOD.search(text[: match.start()])
+            or _POSITIVE_AFTER_FOOD.search(text[match.end() :])
+        )
+    )
+
+
+def supports_food_phrase(passage: FoodPassage, phrase: str) -> bool:
+    return phrase in passage.foods
 
 
 def minimize_for_model(sample: ReviewSample) -> MinimizedGoogleReviewSample:
-    """Select at most three generic food sentences and sixty words in memory.
+    """Inspect twenty reviews, keeping three direct food passages and sixty words.
 
-    Unknown words, names, pronouns about people, digits, contacts and sensitive
-    narratives fail the fixed vocabulary.
+    Prefer whole sentences, then exact comma, semicolon or colon clauses.
+    Unknown words within a candidate fail the unchanged fixed vocabulary.
+    Non-ASCII, qualified praise and personal contexts veto the whole sentence.
+    Sentences touching quoted spans fail, including unclosed quotes through EOF.
     Attribution stays in the caller's ephemeral sample, outside model input.
     """
     passages: list[FoodPassage] = []
     selected: set[str] = set()
     words = 0
-    for review in sample.reviews[:10]:
+    for review_index, review in enumerate(sample.reviews[:20]):
         if not review.text:
             continue
-        for part in re.split(r"(?<=[.!?])\s+|\n+", review.text):
-            sentence = part.strip()
-            count = len(sentence.split())
-            tokens = set(re.findall(r"[a-z]+", sentence.casefold()))
+        quoted_spans = _quoted_spans(review.text)
+        for sentence_start, sentence_end in _text_spans(
+            review.text, _SENTENCE_BOUNDARY
+        ):
+            sentence = review.text[sentence_start:sentence_end]
             if (
-                not 5 <= count <= 20
-                or words + count > 60
-                or len(sentence) > 220
-                or not tokens & _FOOD
-                or not tokens <= _VOCABULARY
-                or not re.fullmatch(r"[A-Za-z][A-Za-z ,;:'()!?._-]+", sentence)
-                or re.search(r"[A-Z]", sentence[1:])
-                or sentence.casefold() in selected
+                not sentence.isascii()
+                or re.search(r"[0-9@\"'/?()\\]", sentence)
+                or _UNSAFE_CONTEXT.search(sentence)
+                or any(
+                    sentence_start < end and start < sentence_end
+                    for start, end in quoted_spans
+                )
             ):
                 continue
-            passages.append(FoodPassage(f"p{len(passages)}", sentence))
-            selected.add(sentence.casefold())
-            words += count
-            break
+            candidates = [(0, len(sentence))]
+            if _CLAUSE_BOUNDARY.search(sentence):
+                candidates.extend(_text_spans(sentence, _CLAUSE_BOUNDARY))
+            for start, end in candidates:
+                passage = sentence[start:end]
+                count = len(passage.split())
+                tokens = set(re.findall(r"[a-z]+", passage.casefold()))
+                foods = _permitted_foods(passage)
+                if (
+                    not 5 <= count <= 20
+                    or words + count > 60
+                    or len(passage) > 220
+                    or not foods
+                    or not tokens <= _VOCABULARY
+                    or not re.fullmatch(r"[A-Za-z][A-Za-z ,;:'()!?._-]+", passage)
+                    or re.search(r"[A-Z]", passage[1:])
+                    or passage.casefold() in selected
+                ):
+                    continue
+                passages.append(
+                    FoodPassage(
+                        f"p{len(passages)}",
+                        passage,
+                        foods,
+                        review_index,
+                        sentence_start + start,
+                        sentence_start + end,
+                    )
+                )
+                selected.add(passage.casefold())
+                words += count
+                if len(passages) == 3:
+                    break
+                if start == 0 and end == len(sentence):
+                    break
+            if len(passages) == 3:
+                break
         if len(passages) == 3:
             break
     return MinimizedGoogleReviewSample(

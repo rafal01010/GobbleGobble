@@ -1,0 +1,8 @@
+{
+  "error": {
+    "code": "command_conflict",
+    "message": "The command identity was already used with different input.",
+    "retryable": false,
+    "provider_body": "Synthetic raw provider response."
+  }
+}

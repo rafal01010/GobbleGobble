@@ -29,6 +29,7 @@ from app.providers.google_reviews import (
     match_branch,
     minimize_for_model,
     normalize_review_date,
+    supports_food_phrase,
 )
 
 _FEATURE = "0x1:0x2"
@@ -603,7 +604,6 @@ async def test_model_minimization_has_explicit_lineage_limits_and_no_personal_fi
     ).fetch(branch())
     minimal = minimize_for_model(sample)
     assert [item.text for item in minimal.passages] == [
-        _FOOD,
         "The bread had a crisp crust and soft center.",
     ]
     payload = minimal.model_input()
@@ -627,7 +627,270 @@ async def test_model_minimization_has_explicit_lineage_limits_and_no_personal_fi
         assert unsafe not in json.dumps(payload)
     assert _FOOD not in repr(minimal)
     duplicate = replace(sample, reviews=sample.reviews * 2)
-    assert len(minimize_for_model(duplicate).passages) == 2
+    assert len(minimize_for_model(duplicate).passages) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "source,expected,foods",
+    [
+        (
+            "The staff were attentive, the chicken was fresh and delicious.",
+            "the chicken was fresh and delicious.",
+            ("chicken",),
+        ),
+        (
+            "The staff were attentive; the bread had a crisp crust and soft center.",
+            "the bread had a crisp crust and soft center.",
+            ("bread",),
+        ),
+        (
+            "Highlights include: the tasting menu was excellent and beautifully prepared.",
+            "the tasting menu was excellent and beautifully prepared.",
+            ("tasting menu",),
+        ),
+        (
+            "The chicken was fresh and the rice was delicious.",
+            "The chicken was fresh and the rice was delicious.",
+            ("chicken", "rice"),
+        ),
+        (
+            "The beautifully prepared fresh fish was excellent.",
+            "The beautifully prepared fresh fish was excellent.",
+            ("fish",),
+        ),
+        (
+            "The chicken was delicious and rice was cooked.",
+            "The chicken was delicious and rice was cooked.",
+            ("chicken",),
+        ),
+    ],
+)
+async def test_minimized_passages_preserve_exact_food_spans_and_source_attribution(
+    source: str, expected: str, foods: tuple[str, ...]
+) -> None:
+    sample = await GoogleReviewClient(
+        calls(),
+        test_transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, content=body([row(text=source)]))
+        ),
+    ).fetch(branch())
+    minimal = minimize_for_model(sample)
+    assert [item.text for item in minimal.passages] == [expected]
+    passage = minimal.passages[0]
+    assert passage.foods == foods
+    assert passage.source_review_index == 0
+    assert source[passage.source_start : passage.source_end] == expected
+    assert sample.reviews[passage.source_review_index].author_name == _AUTHOR
+    assert minimal.model_input()["passages"] == [
+        {"label": "p0", "text": expected, "foods": list(foods)}
+    ]
+    assert "source_start" not in json.dumps(minimal.model_input())
+    assert "source_review_index" not in json.dumps(minimal.model_input())
+    assert all(supports_food_phrase(passage, food) for food in foods)
+    assert not supports_food_phrase(passage, "The chicken")
+    assert not supports_food_phrase(passage, "food")
+    assert expected not in repr(passage)
+    assert repr(foods) not in repr(passage)
+
+
+@pytest.mark.asyncio
+async def test_minimization_scans_later_reviews_and_later_sentences_within_twenty() -> (
+    None
+):
+    texts = [_FOOD] * 10 + [
+        "The chicken was delicious and tender. The bread was fresh and crispy.",
+        "The rice was delicious and perfectly cooked.",
+    ]
+    sample = await GoogleReviewClient(
+        calls(),
+        test_transport=httpx.MockTransport(
+            lambda request: httpx.Response(
+                200,
+                content=body(
+                    [row(str(index), text) for index, text in enumerate(texts)]
+                ),
+            )
+        ),
+    ).fetch(branch())
+    minimal = minimize_for_model(sample)
+    assert [item.text for item in minimal.passages] == [
+        "The chicken was delicious and tender.",
+        "The bread was fresh and crispy.",
+        "The rice was delicious and perfectly cooked.",
+    ]
+    assert [item.source_review_index for item in minimal.passages] == [10, 10, 11]
+    assert minimal.selected_words == 19
+    hidden = replace(sample.reviews[0], text="The coffee was delicious and rich.")
+    beyond_bound = replace(sample, reviews=sample.reviews[:1] * 20 + (hidden,))
+    assert minimize_for_model(beyond_bound).model_input()["passages"] == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "source",
+    [
+        _FOOD,
+        "The dish was delicious and beautifully prepared.",
+        "The sauce was delicious and beautifully prepared.",
+        "The meat was delicious and beautifully prepared.",
+        "The menu was excellent and beautifully prepared.",
+        "The chicken was bland and dry.",
+        "The chicken was cooked and the presentation was excellent.",
+        "If you like bland food, the chicken was fresh and delicious.",
+        "The service was not good, the chicken was fresh and delicious.",
+        "The service wasn't good, the chicken was fresh and delicious.",
+        "I don't agree, the chicken was fresh and delicious.",
+        "The chicken was fresh and delicious, but the rice was bland.",
+        "Although the chicken was fresh and delicious, the kitchen was unsafe.",
+        "The staff said the chicken was fresh and delicious.",
+        "The staff said, the chicken was fresh and delicious.",
+        'The staff said "the chicken was fresh and delicious."',
+        "'The chicken was fresh and delicious.'",
+        "Apparently, the chicken was fresh and delicious.",
+        "Perhaps, the chicken was fresh and delicious.",
+        "The chicken might be fresh and delicious.",
+        "Unlike the fish, the chicken was fresh and delicious.",
+        "Compared with rice, the chicken was fresh and delicious.",
+        "Is the chicken fresh and delicious?",
+        "No es bueno, the chicken was fresh and delicious.",
+        "美味しくない, the chicken was fresh and delicious.",
+        "My wife was recovering from surgery, the chicken was fresh and delicious.",
+        "After chemotherapy, the chicken was fresh and delicious.",
+        "Contact alice@example.invalid, the chicken was fresh and delicious.",
+        "Call 123456789, the chicken was fresh and delicious.",
+        "The chicken xyz was fresh and delicious.",
+        "The chicken was fresh xyz and delicious.",
+    ],
+)
+async def test_minimization_rejects_generic_negative_unsafe_or_unknown_context(
+    source: str,
+) -> None:
+    sample = await GoogleReviewClient(
+        calls(),
+        test_transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, content=body([row(text=source)]))
+        ),
+    ).fetch(branch())
+    minimal = minimize_for_model(sample)
+    assert minimal.model_input()["passages"] == []
+    assert minimal.selected_words == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "opening,closing,separator",
+    [
+        ('"', '"', " "),
+        ('"', '"', "\n"),
+        ("\u201c", "\u201d", " "),
+        ("\u201c", "\u201d", "\n"),
+        ("'", "'", " "),
+        ("'", "'", "\n"),
+        ("\u2018", "\u2019", " "),
+        ("\u2018", "\u2019", "\n"),
+    ],
+)
+async def test_minimization_excludes_quoted_middle_sentences_and_keeps_unquoted_evidence(
+    opening: str, closing: str, separator: str
+) -> None:
+    source = (
+        f"The advertisement claimed {opening}The room was attractive.{separator}"
+        f"The chicken was fresh and delicious.{separator}"
+        f"The service was excellent.{closing}{separator}"
+        "The bread was fresh and crispy."
+    )
+    sample = await GoogleReviewClient(
+        calls(),
+        test_transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, content=body([row(text=source)]))
+        ),
+    ).fetch(branch())
+    minimal = minimize_for_model(sample)
+    assert [item.text for item in minimal.passages] == [
+        "The bread was fresh and crispy."
+    ]
+    passage = minimal.passages[0]
+    assert passage.foods == ("bread",)
+    assert source[passage.source_start : passage.source_end] == passage.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("opening", ['"', "\u201c", "'", "\u2018"])
+async def test_minimization_excludes_unclosed_quoted_speech_through_end_of_review(
+    opening: str,
+) -> None:
+    source = (
+        "The bread was fresh and crispy.\n"
+        f"The advertisement claimed {opening}The room was attractive.\n"
+        "The chicken was fresh and delicious.\n"
+        "The rice was delicious and tender."
+    )
+    sample = await GoogleReviewClient(
+        calls(),
+        test_transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, content=body([row(text=source)]))
+        ),
+    ).fetch(branch())
+    minimal = minimize_for_model(sample)
+    assert [item.text for item in minimal.passages] == [
+        "The bread was fresh and crispy."
+    ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("apostrophe", ["'", "\u2019"])
+async def test_minimization_keeps_unquoted_food_after_a_separate_contraction(
+    apostrophe: str,
+) -> None:
+    source = (
+        f"The service wasn{apostrophe}t good.\nThe chicken was fresh and delicious."
+    )
+    sample = await GoogleReviewClient(
+        calls(),
+        test_transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, content=body([row(text=source)]))
+        ),
+    ).fetch(branch())
+    minimal = minimize_for_model(sample)
+    assert [item.text for item in minimal.passages] == [
+        "The chicken was fresh and delicious."
+    ]
+
+
+@pytest.mark.asyncio
+async def test_minimization_keeps_passage_word_character_and_deduplication_bounds() -> (
+    None
+):
+    safe = "The chicken was delicious and " + "very " * 14 + "tender."
+    too_long = "The rice was delicious and " + "very " * 15 + "tender."
+    repeated = ". ".join([safe.rstrip(".")] * 4) + "."
+    sample = await GoogleReviewClient(
+        calls(),
+        test_transport=httpx.MockTransport(
+            lambda request: httpx.Response(
+                200,
+                content=body(
+                    [
+                        row("long", too_long),
+                        row("repeated", repeated),
+                        row("bread", "The bread was fresh and crispy."),
+                        row("rice", "The rice was fresh and delicious."),
+                        row("fish", "The fish was fresh and delicious."),
+                    ]
+                ),
+            )
+        ),
+    ).fetch(branch())
+    minimal = minimize_for_model(sample)
+    assert [item.text for item in minimal.passages] == [
+        safe,
+        "The bread was fresh and crispy.",
+        "The rice was fresh and delicious.",
+    ]
+    assert minimal.selected_words == 32
+    assert all(5 <= len(item.text.split()) <= 20 for item in minimal.passages)
+    assert all(len(item.text) <= 220 for item in minimal.passages)
 
 
 @pytest.mark.parametrize(

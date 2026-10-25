@@ -1,0 +1,16 @@
+{
+  "place_id": "example-place-stall-01",
+  "kind": "stall",
+  "name": "Illustrative stall",
+  "branch_label": "Illustrative unit 4",
+  "parent_place_id": "example-place-food-court-01",
+  "location": {
+    "coordinates": {"latitude": 35.002, "longitude": 139.002},
+    "timezone": "Asia/Tokyo",
+    "provider_refs": [
+      {"provider": "example-geography", "provider_id": "example-stall-01"}
+    ]
+  },
+  "journey": {"status": "unknown"},
+  "opening": {"status": "unknown"}
+}

@@ -1,0 +1,28 @@
+{
+  "place_id": "example-place-branch-02",
+  "kind": "branch",
+  "name": "Illustrative assessed restaurant",
+  "branch_label": "Illustrative west branch",
+  "location": {
+    "coordinates": {"latitude": 35.003, "longitude": 139.003},
+    "timezone": "Asia/Tokyo",
+    "provider_refs": [
+      {"provider": "example-geography", "provider_id": "example-branch-02"}
+    ]
+  },
+  "journey": {
+    "status": "estimated",
+    "mode": "walk",
+    "duration_seconds": 720,
+    "distance_m": 850,
+    "basis": "no_live_traffic",
+    "qualification": "Illustrative estimate only."
+  },
+  "opening": {
+    "status": "assessed",
+    "assessed_at": "2026-10-25T12:00:00+09:00",
+    "opening": "open",
+    "meal_service": "unknown",
+    "qualification": "Illustrative assessment only. Meal service remains unconfirmed."
+  }
+}

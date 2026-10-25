@@ -1,0 +1,17 @@
+{
+  "place_id": "example-place-branch-01",
+  "kind": "branch",
+  "name": "Illustrative restaurant",
+  "branch_label": "Illustrative east branch",
+  "location": {
+    "coordinates": {"latitude": 35.001, "longitude": 139.001},
+    "timezone": "Asia/Tokyo",
+    "formatted_address": "Illustrative address only",
+    "provider_refs": [
+      {"provider": "example-geography", "provider_id": "example-branch-01"},
+      {"provider": "example-place-directory", "provider_id": "example-branch-a"}
+    ]
+  },
+  "journey": {"status": "unknown", "qualification": "Route has not been checked."},
+  "opening": {"status": "unknown", "qualification": "Opening and meal service have not been checked."}
+}

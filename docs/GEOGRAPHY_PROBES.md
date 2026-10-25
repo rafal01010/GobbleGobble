@@ -1,8 +1,8 @@
 # Location and discovery probe reference
 
-GG-002.04 prepares Geoapify location and nearby meal-place requests in `apps/backend/app/providers/geoapify.py`. It is implemented, awaiting section verification at GG-003. These clients do not start an application or run on import. GG-002.05 extends the same client with [walking and driving route probes](ROUTE_PROBES.md). The probe command remains GG-002.08.
+GG-002.04 prepares Geoapify location and nearby meal-place requests in `apps/backend/app/providers/geoapify.py`. It passed [Section A feasibility verification at GG-003](FEASIBILITY_GATE.md). These clients do not start an application or run on import. GG-002.05 extends the same client with [walking and driving route probes](ROUTE_PROBES.md). The [bounded probe command](LIVE_PROBES.md) connects these clients for GG-003.
 
-Geoapify is the prepared candidate under the existing [source-use findings](INTEGRATIONS.md#permission-findings). GG-002.04 did not select the final provider or establish account access. A later [bounded experiment](REVIEW_FEASIBILITY.md#licensed-independent-source-validation) successfully used the prepared client for one Cebu City lookup and one nearby meal-place request with the configured key. Full section verification remains GG-003. Configured Google location or discovery providers fail explicitly for the affected operation. There is no provider or fixture fallback.
+Geoapify is the prepared candidate under the existing [source-use findings](INTEGRATIONS.md#permission-findings). GG-002.04 did not select the final provider or establish account access. A later [bounded experiment](REVIEW_FEASIBILITY.md#licensed-independent-source-validation) successfully used the prepared client for one Cebu City lookup and one nearby meal-place request with the configured key. GG-003 subsequently passed bounded checks in Japan and the Philippines. Configured Google location or discovery providers fail explicitly for the affected operation. There is no provider or fixture fallback.
 
 ## Interface and configuration
 
@@ -68,7 +68,7 @@ Provider values remain ephemeral. The client does not persist raw responses, ena
 
 Discovery yields geographic leads. It does not establish meal service, opening status, menu availability, ratings, review quality, branch/stall normalization, or travel-time eligibility. Radius is a geographic filter, not a walking or driving duration. A capped response may omit suitable outlets. A short or empty response does not establish exhaustive coverage. Local-language and romanized-name quality, worldwide coverage, useful coordinates, and attribution availability remain live observations for GG-003.
 
-Reverse geocoding, destination-time interpretation, broader discovery, and production candidate qualification remain in their scheduled tasks. Routes are documented separately under [GG-002.05](ROUTE_PROBES.md). The [web-research client](WEB_RESEARCH_PROBES.md) is prepared. SDK agents and the probe CLI remain scheduled work.
+Reverse geocoding, destination-time interpretation, broader discovery, and production candidate qualification remain in their scheduled tasks. Routes are documented separately under [GG-002.05](ROUTE_PROBES.md). The [web-research client](WEB_RESEARCH_PROBES.md) is prepared. The [SDK probe](SDK_PROBE.md) and [probe CLI](LIVE_PROBES.md) passed GG-003 bounded feasibility verification.
 
 ## Verification boundary
 

@@ -1,0 +1,20 @@
+{
+  "run": {
+    "search_id": "search_example",
+    "run_id": "run_example",
+    "operation": "initial",
+    "attempt_id": "attempt_1",
+    "state": {
+      "status": "completed",
+      "outcome": {
+        "kind": "insufficient_coverage",
+        "gaps": [
+          "Coverage cannot establish eligibility for the discovered places."
+        ]
+      }
+    },
+    "last_event_sequence": 5
+  },
+  "recommendations": null,
+  "display_version_id": null
+}

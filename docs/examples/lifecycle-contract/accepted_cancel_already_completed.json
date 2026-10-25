@@ -1,0 +1,18 @@
+{
+  "command_id": "command_cancel",
+  "disposition": "already_completed",
+  "run": {
+    "search_id": "search_example",
+    "run_id": "run_example",
+    "operation": "initial",
+    "attempt_id": "attempt_1",
+    "state": {
+      "status": "completed",
+      "outcome": {
+        "kind": "ready",
+        "version_id": "ver_initial"
+      }
+    },
+    "last_event_sequence": 5
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "search_id": "search_example",
+  "run_id": "run_example",
+  "attempt_id": "attempt_1",
+  "sequence": 2,
+  "occurred_at": "2026-10-25T04:00:00Z",
+  "result_version_id": null,
+  "payload": {
+    "kind": "completed",
+    "outcome": {
+      "kind": "insufficient_coverage",
+      "gaps": [
+        "Coverage cannot establish eligibility for the discovered places."
+      ]
+    }
+  }
+}

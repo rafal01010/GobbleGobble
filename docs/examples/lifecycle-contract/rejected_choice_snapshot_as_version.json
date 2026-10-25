@@ -1,0 +1,12 @@
+{
+  "search_id": "search_example",
+  "run_id": "run_example",
+  "command_id": "command_choose",
+  "selection": {
+    "kind": "food_choice",
+    "choice": {
+      "version_id": "snap_initial",
+      "choice_id": "noodles"
+    }
+  }
+}

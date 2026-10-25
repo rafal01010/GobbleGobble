@@ -1,0 +1,16 @@
+{
+  "outcome": {
+    "status": "resolved",
+    "origin": {
+      "kind": "chosen",
+      "location": {
+        "coordinates": {
+          "latitude": 14.6,
+          "longitude": 121.0
+        },
+        "timezone": "Asia/Manila",
+        "name": "Synthetic origin"
+      }
+    }
+  }
+}

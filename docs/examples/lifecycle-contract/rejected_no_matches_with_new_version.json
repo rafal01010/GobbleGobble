@@ -1,0 +1,20 @@
+{
+  "run": {
+    "search_id": "search_example",
+    "run_id": "run_example",
+    "operation": "initial",
+    "attempt_id": "attempt_1",
+    "state": {
+      "status": "completed",
+      "outcome": {
+        "kind": "no_matches",
+        "assessed_scope": "The synthetic walking area at the requested instant.",
+        "explanation": "The assessed eligible places did not meet this request.",
+        "version_id": "ver_initial"
+      }
+    },
+    "last_event_sequence": 5
+  },
+  "recommendations": null,
+  "display_version_id": null
+}

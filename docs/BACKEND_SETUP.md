@@ -1,6 +1,6 @@
 # Set up the backend environment
 
-This procedure installs the Python dependencies for GG-002.01 and prepares local settings for GG-002.02. GG-002.03 adds the [bounded call layer](CALLS.md) for future adapters. GG-002.04 and GG-002.05 add prepared geographic clients. GG-002.06 adds the [web-research client](WEB_RESEARCH_PROBES.md). The API, worker, and executable probe command are not implemented yet. Section A verification remains at GG-003.
+This procedure installs the Python dependencies for GG-002.01 and prepares local settings for GG-002.02. GG-002.03 adds the [bounded call layer](CALLS.md) for future adapters. GG-002.04 and GG-002.05 add prepared geographic clients. GG-002.06 adds the [web-research client](WEB_RESEARCH_PROBES.md). GG-002.07 adds the [SDK owner and research probe](SDK_PROBE.md). GG-002.08 connects the clients through the [bounded probe command](LIVE_PROBES.md). The API and worker are not implemented yet. Section A verification remains at GG-003.
 
 ## Prerequisites
 
@@ -44,13 +44,25 @@ To reuse an already populated cache without network access, pass `--offline` to 
 scripts/local/init-backend.sh --offline
 ```
 
+## Run offline section checks
+
+After initialization, run the Section A checks from the repository root:
+
+```sh
+scripts/local/verify-section-a.sh
+```
+
+The script uses the installed `apps/backend/.venv` interpreter and development tools. It does not install dependencies, synchronize the environment, or make live provider calls. It resolves the backend relative to the script, so you can also invoke it by absolute path from another directory.
+
+The checks run the full offline test suite, Ruff lint and format checks, mypy over `app` and `tests`, and shell syntax validation for `probe-live.sh`. The script stops at the first failure and returns its nonzero exit status. Fix the reported failure and rerun the command. A zero exit status means every offline check passed. Live observations and the Section A decision belong to the [feasibility gate](FEASIBILITY_GATE.md).
+
 ## Dependency changes
 
 Edit dependencies through uv from `apps/backend` and review both `pyproject.toml` and `uv.lock`. Keep the lockfile in version control. Routine setup uses the lock rather than selecting newer releases. [uv's locking and syncing documentation](https://docs.astral.sh/uv/concepts/projects/sync/) describes locked setup and deliberate upgrades.
 
 The runtime dependencies cover HTTP requests, the OpenAI client and Agents SDK, typed data and settings, and the planned FastAPI server. The development group contains pytest, pytest-asyncio, Ruff, and mypy. The [official Agents SDK quickstart](https://developers.openai.com/api/docs/guides/agents/quickstart?lang=python) identifies `openai-agents` as the Python SDK package.
 
-The `app` package contains local settings, the bounded call layer, the prepared [location/discovery](GEOGRAPHY_PROBES.md) and [walking/driving route](ROUTE_PROBES.md) client, the [OpenAI web-research client](WEB_RESEARCH_PROBES.md), and the [anonymous Google review client](GOOGLE_REVIEW_PROBES.md). None runs a provider during import or environment setup. The geographic and review clients use the installed HTTPX dependency. Earlier bounded experiments demonstrated Geoapify location/discovery, Sol-based OpenAI access and anonymous Google review retrieval. Full provider selection, route access and current Luna-model verification remain GG-003. Models, credentials and source controls remain governed by the [integration findings](INTEGRATIONS.md) and later tasks. Installing the SDK does not configure its tracing or authorize live research. Database libraries can be selected with the persistence implementation.
+The `app` package contains local settings, the bounded call layer, the prepared [location/discovery](GEOGRAPHY_PROBES.md) and [walking/driving route](ROUTE_PROBES.md) client, the [OpenAI web-research client](WEB_RESEARCH_PROBES.md), the [anonymous Google review client](GOOGLE_REVIEW_PROBES.md), and the [SDK owner/research probe](SDK_PROBE.md). None runs a provider during import or environment setup. The geographic and review clients use the installed HTTPX dependency. Earlier bounded experiments demonstrated Geoapify location/discovery, Sol-based OpenAI access and anonymous Google review retrieval. Full provider selection, route access and current Luna-model verification remain GG-003. Models, credentials and source controls remain governed by the [integration findings](INTEGRATIONS.md) and later tasks. Installing the SDK does not configure its tracing or authorize live research. Database libraries can be selected with the persistence implementation.
 
 ## Configure local settings
 
@@ -91,4 +103,4 @@ GG-002.06A adds two independent settings to the example inventory. Set `GG_REVIE
 
 Use `load_review_settings` for review-only preflight without geography or model credentials. Use general `load_settings` when the attempt shares review, geography and model calls. Neither loader contacts a service. `GoogleReviewClient.preflight()` reports a fixed missing-selection or missing-timeout error before it can transmit. See the [review probe reference](GOOGLE_REVIEW_PROBES.md) for the interface, bounds and retention decisions.
 
-The current task leaves the actual local `.env` unchanged. No review CLI exists yet. GG-002.08 introduces the bounded probe command; GG-003 owns behavioral and live verification.
+GG-002.08 left the actual local `.env` unchanged. At GG-003, the missing review fields were explicitly set to `google_reviews` and 30 seconds. The GG-002.08 command accepts typed JSON input, with independent review-only scenarios and explicit live opt-in. After initialization, run `scripts/local/probe-live.sh --help` from the repository root. See the [command reference](LIVE_PROBES.md) for scenario inputs, configuration requirements, request bounds, and exit codes. GG-003 owns behavioral and live verification.

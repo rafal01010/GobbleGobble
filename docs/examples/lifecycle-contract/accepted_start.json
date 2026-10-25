@@ -1,0 +1,21 @@
+{
+  "command_id": "command_start",
+  "request": {
+    "origin": {
+      "kind": "chosen",
+      "location": {
+        "coordinates": {
+          "latitude": 14.6,
+          "longitude": 121.0
+        },
+        "timezone": "Asia/Manila",
+        "name": "Synthetic origin"
+      }
+    },
+    "travel": {
+      "mode": "walk",
+      "minutes": 15
+    },
+    "eat_now_at": "2026-10-25T04:00:00Z"
+  }
+}

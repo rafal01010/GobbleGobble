@@ -1,0 +1,192 @@
+{
+  "place_ids": [
+    "branch_a",
+    "branch_b"
+  ],
+  "sources": [
+    {
+      "source_id": "src_group_menu",
+      "subject_place_ids": [
+        "branch_a",
+        "branch_b"
+      ],
+      "publisher": "Example restaurant group",
+      "source_url": "https://example.invalid/src_group_menu",
+      "attribution_ids": [],
+      "origin": {
+        "kind": "independent",
+        "access_method": "public_page"
+      },
+      "policy": {
+        "access": {
+          "decision": "unknown",
+          "basis": "Synthetic policy declaration."
+        },
+        "display": {
+          "decision": "unknown",
+          "basis": "Synthetic policy declaration."
+        },
+        "model_input": {
+          "decision": "unknown",
+          "basis": "Synthetic policy declaration."
+        },
+        "derived_output": {
+          "decision": "unknown",
+          "basis": "Synthetic policy declaration."
+        },
+        "tracing": {
+          "decision": "unknown",
+          "basis": "Synthetic policy declaration."
+        }
+      },
+      "retention": {
+        "raw_content": {
+          "mode": "ephemeral",
+          "basis": "Synthetic ephemeral example."
+        },
+        "derived_content": {
+          "mode": "ephemeral",
+          "basis": "Synthetic ephemeral example."
+        },
+        "identifiers": {
+          "mode": "unknown",
+          "basis": "Synthetic identifier policy."
+        }
+      }
+    }
+  ],
+  "attributions": [],
+  "evidence": [
+    {
+      "evidence_id": "ev_menu_a",
+      "source_id": "src_group_menu",
+      "subject_place_ids": [
+        "branch_a"
+      ],
+      "statement": "Branch A lists roast chicken.",
+      "locator": {
+        "kind": "document",
+        "section": "Synthetic branch menu"
+      },
+      "attribution_ids": [],
+      "freshness": {
+        "retrieved_at": "2026-10-25T04:00:00Z",
+        "observed_at": null,
+        "fresh_until": null,
+        "basis": "Synthetic observation, freshness duration unknown."
+      }
+    },
+    {
+      "evidence_id": "ev_menu_b",
+      "source_id": "src_group_menu",
+      "subject_place_ids": [
+        "branch_b"
+      ],
+      "statement": "Branch B lists mushroom soup.",
+      "locator": {
+        "kind": "document",
+        "section": "Synthetic branch menu"
+      },
+      "attribution_ids": [],
+      "freshness": {
+        "retrieved_at": "2026-10-25T04:00:00Z",
+        "observed_at": null,
+        "fresh_until": null,
+        "basis": "Synthetic observation, freshness duration unknown."
+      }
+    },
+    {
+      "evidence_id": "ev_price_a",
+      "source_id": "src_group_menu",
+      "subject_place_ids": [
+        "branch_a"
+      ],
+      "statement": "Branch A chicken costs PHP 250.",
+      "locator": {
+        "kind": "document",
+        "section": "Synthetic branch menu"
+      },
+      "attribution_ids": [],
+      "freshness": {
+        "retrieved_at": "2026-10-25T04:00:00Z",
+        "observed_at": null,
+        "fresh_until": null,
+        "basis": "Synthetic observation, freshness duration unknown."
+      }
+    },
+    {
+      "evidence_id": "ev_price_b",
+      "source_id": "src_group_menu",
+      "subject_place_ids": [
+        "branch_b"
+      ],
+      "statement": "Branch B soup costs PHP 180.",
+      "locator": {
+        "kind": "document",
+        "section": "Synthetic branch menu"
+      },
+      "attribution_ids": [],
+      "freshness": {
+        "retrieved_at": "2026-10-25T04:00:00Z",
+        "observed_at": null,
+        "fresh_until": null,
+        "basis": "Synthetic observation, freshness duration unknown."
+      }
+    }
+  ],
+  "food_claims": [
+    {
+      "claim_id": "claim_menu_a",
+      "status": "sourced",
+      "topic": "menu",
+      "statement": "Branch A lists roast chicken.",
+      "subjects": [
+        {
+          "place_id": "branch_a",
+          "evidence_ids": [
+            "ev_nonexistent"
+          ]
+        }
+      ]
+    },
+    {
+      "claim_id": "claim_price_b",
+      "status": "sourced",
+      "topic": "price",
+      "statement": "Branch B soup costs PHP 180.",
+      "subjects": [
+        {
+          "place_id": "branch_b",
+          "evidence_ids": [
+            "ev_price_b"
+          ]
+        }
+      ]
+    },
+    {
+      "claim_id": "claim_inference",
+      "status": "inferred",
+      "topic": "food",
+      "statement": "Chicken may suit someone wanting a substantial meal.",
+      "subjects": [
+        {
+          "place_id": "branch_a",
+          "evidence_ids": [
+            "ev_menu_a"
+          ]
+        }
+      ],
+      "basis": "A listed roast chicken dish supports this qualified suggestion, not portion certainty."
+    },
+    {
+      "claim_id": "claim_gap",
+      "status": "unknown",
+      "topic": "price",
+      "subject_place_ids": [
+        "branch_a"
+      ],
+      "gap": "Current drink prices were not obtained."
+    }
+  ],
+  "review_assessments": []
+}

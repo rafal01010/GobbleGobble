@@ -1,0 +1,175 @@
+{
+  "place_ids": [
+    "branch_a",
+    "branch_b"
+  ],
+  "sources": [
+    {
+      "source_id": "src_google_a",
+      "subject_place_ids": [
+        "branch_a"
+      ],
+      "publisher": "Google Maps",
+      "source_url": "https://example.invalid/src_google_a",
+      "attribution_ids": [
+        "author_example"
+      ],
+      "origin": {
+        "kind": "google",
+        "branch": {
+          "feature_id": "0xa:0x1"
+        },
+        "access_method": "anonymous"
+      },
+      "policy": {
+        "access": {
+          "decision": "unknown",
+          "basis": "Synthetic policy declaration."
+        },
+        "display": {
+          "decision": "unknown",
+          "basis": "Synthetic policy declaration."
+        },
+        "model_input": {
+          "decision": "unknown",
+          "basis": "Synthetic policy declaration."
+        },
+        "derived_output": {
+          "decision": "unknown",
+          "basis": "Synthetic policy declaration."
+        },
+        "tracing": {
+          "decision": "unknown",
+          "basis": "Synthetic policy declaration."
+        }
+      },
+      "retention": {
+        "raw_content": {
+          "mode": "ephemeral",
+          "basis": "Synthetic ephemeral example."
+        },
+        "derived_content": {
+          "mode": "ephemeral",
+          "basis": "Synthetic ephemeral example."
+        },
+        "identifiers": {
+          "mode": "unknown",
+          "basis": "Synthetic identifier policy."
+        }
+      }
+    },
+    {
+      "source_id": "src_independent_a",
+      "subject_place_ids": [
+        "branch_a"
+      ],
+      "publisher": "Example restaurant group",
+      "source_url": "https://example.invalid/src_independent_a",
+      "attribution_ids": [],
+      "origin": {
+        "kind": "independent",
+        "access_method": "public_page"
+      },
+      "policy": {
+        "access": {
+          "decision": "unknown",
+          "basis": "Synthetic policy declaration."
+        },
+        "display": {
+          "decision": "unknown",
+          "basis": "Synthetic policy declaration."
+        },
+        "model_input": {
+          "decision": "unknown",
+          "basis": "Synthetic policy declaration."
+        },
+        "derived_output": {
+          "decision": "unknown",
+          "basis": "Synthetic policy declaration."
+        },
+        "tracing": {
+          "decision": "unknown",
+          "basis": "Synthetic policy declaration."
+        }
+      },
+      "retention": {
+        "raw_content": {
+          "mode": "ephemeral",
+          "basis": "Synthetic ephemeral example."
+        },
+        "derived_content": {
+          "mode": "ephemeral",
+          "basis": "Synthetic ephemeral example."
+        },
+        "identifiers": {
+          "mode": "unknown",
+          "basis": "Synthetic identifier policy."
+        }
+      }
+    }
+  ],
+  "attributions": [
+    {
+      "attribution_id": "author_example",
+      "kind": "author",
+      "name": "Maria Example",
+      "url": "https://example.invalid/public-profile"
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "ev_independent_a",
+      "source_id": "src_independent_a",
+      "subject_place_ids": [
+        "branch_a"
+      ],
+      "statement": "Independent menu lists chicken.",
+      "locator": {
+        "kind": "document",
+        "section": "Synthetic branch menu"
+      },
+      "attribution_ids": [],
+      "freshness": {
+        "retrieved_at": "2026-10-25T04:00:00Z",
+        "observed_at": null,
+        "fresh_until": null,
+        "basis": "Synthetic observation, freshness duration unknown."
+      }
+    }
+  ],
+  "food_claims": [],
+  "review_assessments": [
+    {
+      "assessment_id": "assessment_a",
+      "place_id": "branch_a",
+      "google": {
+        "status": "provider_unavailable",
+        "source_id": "src_google_a",
+        "reason": "Synthetic transport timeout."
+      },
+      "findings": [],
+      "fallback": {
+        "kind": "food_evidence",
+        "source_id": "src_independent_a",
+        "reason": "provider_unavailable",
+        "evidence_ids": [
+          "ev_independent_a"
+        ],
+        "findings": [
+          {
+            "topic": "food",
+            "statement": "The independent menu lists chicken.",
+            "subjects": [
+              {
+                "place_id": "branch_a",
+                "evidence_ids": [
+                  "ev_independent_a"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

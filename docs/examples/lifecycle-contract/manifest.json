@@ -1,0 +1,436 @@
+{
+  "accepted_resolve_current": {
+    "model": "ResolveLocationRequest",
+    "accepted": true
+  },
+  "accepted_resolve_chosen": {
+    "model": "ResolveLocationRequest",
+    "accepted": true
+  },
+  "accepted_location_resolved": {
+    "model": "ResolveLocationResponse",
+    "accepted": true
+  },
+  "accepted_location_no_match": {
+    "model": "ResolveLocationResponse",
+    "accepted": true
+  },
+  "accepted_location_unavailable": {
+    "model": "ResolveLocationResponse",
+    "accepted": true
+  },
+  "accepted_start": {
+    "model": "StartRunRequest",
+    "accepted": true
+  },
+  "accepted_read_reference": {
+    "model": "ReadRunRequest",
+    "accepted": true
+  },
+  "accepted_watch_from_zero": {
+    "model": "WatchRunRequest",
+    "accepted": true
+  },
+  "accepted_watch_after_sequence": {
+    "model": "WatchRunRequest",
+    "accepted": true
+  },
+  "accepted_choose_offered_pair": {
+    "model": "ChooseFoodRequest",
+    "accepted": true
+  },
+  "accepted_choose_all_options": {
+    "model": "ChooseFoodRequest",
+    "accepted": true
+  },
+  "accepted_retry_claimed": {
+    "model": "RetryRunRequest",
+    "accepted": true
+  },
+  "accepted_retry_unclaimed": {
+    "model": "RetryRunRequest",
+    "accepted": true
+  },
+  "accepted_cancel_claimed": {
+    "model": "CancelRunRequest",
+    "accepted": true
+  },
+  "accepted_cancel_unclaimed": {
+    "model": "CancelRunRequest",
+    "accepted": true
+  },
+  "accepted_queued_admission": {
+    "model": "CommandResponse",
+    "accepted": true
+  },
+  "accepted_retry_preserves_purpose": {
+    "model": "CommandResponse",
+    "accepted": true
+  },
+  "accepted_completed_command_replay": {
+    "model": "CommandResponse",
+    "accepted": true
+  },
+  "accepted_cancel_requested": {
+    "model": "CancelRunResponse",
+    "accepted": true
+  },
+  "accepted_cancel_already_cancelling": {
+    "model": "CancelRunResponse",
+    "accepted": true
+  },
+  "accepted_cancel_already_cancelled": {
+    "model": "CancelRunResponse",
+    "accepted": true
+  },
+  "accepted_cancel_already_completed": {
+    "model": "CancelRunResponse",
+    "accepted": true
+  },
+  "accepted_command_error": {
+    "model": "ErrorResponse",
+    "accepted": true
+  },
+  "accepted_queued_without_result": {
+    "model": "RunReadResponse",
+    "accepted": true
+  },
+  "accepted_running_without_result": {
+    "model": "RunReadResponse",
+    "accepted": true
+  },
+  "accepted_cancelling_with_prior_result": {
+    "model": "RunReadResponse",
+    "accepted": true
+  },
+  "accepted_cancelled_with_prior_result": {
+    "model": "RunReadResponse",
+    "accepted": true
+  },
+  "accepted_outcome_ready": {
+    "model": "RunReadResponse",
+    "accepted": true
+  },
+  "accepted_outcome_partial": {
+    "model": "RunReadResponse",
+    "accepted": true
+  },
+  "accepted_outcome_no_matches": {
+    "model": "RunReadResponse",
+    "accepted": true
+  },
+  "accepted_outcome_insufficient_coverage": {
+    "model": "RunReadResponse",
+    "accepted": true
+  },
+  "accepted_outcome_technical_failure": {
+    "model": "RunReadResponse",
+    "accepted": true
+  },
+  "accepted_event_queued": {
+    "model": "RunEvent",
+    "accepted": true
+  },
+  "accepted_event_progress": {
+    "model": "RunEvent",
+    "accepted": true
+  },
+  "accepted_event_cancelling": {
+    "model": "RunEvent",
+    "accepted": true
+  },
+  "accepted_event_cancelled": {
+    "model": "RunEvent",
+    "accepted": true
+  },
+  "accepted_event_queued_cancellation": {
+    "model": "RunEvent",
+    "accepted": true
+  },
+  "accepted_event_ready": {
+    "model": "RunEvent",
+    "accepted": true
+  },
+  "accepted_event_partial": {
+    "model": "RunEvent",
+    "accepted": true
+  },
+  "accepted_event_no_matches": {
+    "model": "RunEvent",
+    "accepted": true
+  },
+  "accepted_event_insufficient_coverage": {
+    "model": "RunEvent",
+    "accepted": true
+  },
+  "accepted_event_technical_failure": {
+    "model": "RunEvent",
+    "accepted": true
+  },
+  "accepted_event_batch_gaps_and_retry": {
+    "model": "EventBatch",
+    "accepted": true
+  },
+  "accepted_empty_event_batch": {
+    "model": "EventBatch",
+    "accepted": true
+  },
+  "rejected_queued_attempt": {
+    "model": "RunSnapshot",
+    "accepted": false,
+    "error_type": "value_error",
+    "error_message": "queued state has no current attempt"
+  },
+  "rejected_running_without_attempt": {
+    "model": "RunSnapshot",
+    "accepted": false,
+    "error_type": "value_error",
+    "error_message": "running or completed state requires an attempt"
+  },
+  "rejected_completed_without_attempt": {
+    "model": "RunSnapshot",
+    "accepted": false,
+    "error_type": "value_error",
+    "error_message": "running or completed state requires an attempt"
+  },
+  "rejected_completed_without_outcome": {
+    "model": "RunSnapshot",
+    "accepted": false,
+    "error_type": "missing",
+    "error_message": "Field required"
+  },
+  "rejected_queued_outcome": {
+    "model": "RunSnapshot",
+    "accepted": false,
+    "error_type": "extra_forbidden",
+    "error_message": "Extra inputs are not permitted"
+  },
+  "rejected_cancelled_outcome": {
+    "model": "RunSnapshot",
+    "accepted": false,
+    "error_type": "extra_forbidden",
+    "error_message": "Extra inputs are not permitted"
+  },
+  "rejected_ready_without_display": {
+    "model": "RunReadResponse",
+    "accepted": false,
+    "error_type": "value_error",
+    "error_message": "successful outcome must match the display version"
+  },
+  "rejected_missing_display_version": {
+    "model": "RunReadResponse",
+    "accepted": false,
+    "error_type": "value_error",
+    "error_message": "display version is absent from supplied recommendations"
+  },
+  "rejected_empty_ready_version": {
+    "model": "RunReadResponse",
+    "accepted": false,
+    "error_type": "value_error",
+    "error_message": "display version requires nonempty recommendations"
+  },
+  "rejected_other_search_result": {
+    "model": "RunReadResponse",
+    "accepted": false,
+    "error_type": "value_error",
+    "error_message": "recommendation collection belongs to another search"
+  },
+  "rejected_success_version_mismatch": {
+    "model": "RunReadResponse",
+    "accepted": false,
+    "error_type": "value_error",
+    "error_message": "successful outcome must match the display version"
+  },
+  "rejected_partial_without_limitations": {
+    "model": "RunReadResponse",
+    "accepted": false,
+    "error_type": "too_short",
+    "error_message": null
+  },
+  "rejected_no_matches_with_new_version": {
+    "model": "RunReadResponse",
+    "accepted": false,
+    "error_type": "extra_forbidden",
+    "error_message": "Extra inputs are not permitted"
+  },
+  "rejected_insufficient_coverage_with_new_version": {
+    "model": "RunReadResponse",
+    "accepted": false,
+    "error_type": "extra_forbidden",
+    "error_message": "Extra inputs are not permitted"
+  },
+  "rejected_technical_failure_with_new_version": {
+    "model": "RunReadResponse",
+    "accepted": false,
+    "error_type": "extra_forbidden",
+    "error_message": "Extra inputs are not permitted"
+  },
+  "rejected_empty_coverage_gaps": {
+    "model": "RunReadResponse",
+    "accepted": false,
+    "error_type": "too_short",
+    "error_message": null
+  },
+  "rejected_unbounded_failure_code": {
+    "model": "RunReadResponse",
+    "accepted": false,
+    "error_type": "literal_error",
+    "error_message": null
+  },
+  "rejected_no_matches_without_scope": {
+    "model": "RunReadResponse",
+    "accepted": false,
+    "error_type": "string_too_short",
+    "error_message": null
+  },
+  "rejected_event_sequence_zero": {
+    "model": "RunEvent",
+    "accepted": false,
+    "error_type": "greater_than_equal",
+    "error_message": null
+  },
+  "rejected_event_sequence_boolean": {
+    "model": "RunEvent",
+    "accepted": false,
+    "error_type": "int_type",
+    "error_message": null
+  },
+  "rejected_boolean_schema_version": {
+    "model": "RunEvent",
+    "accepted": false,
+    "error_type": "int_type",
+    "error_message": null
+  },
+  "rejected_progress_result_version": {
+    "model": "RunEvent",
+    "accepted": false,
+    "error_type": "value_error",
+    "error_message": "event result version differs from its published outcome"
+  },
+  "rejected_completed_event_version_mismatch": {
+    "model": "RunEvent",
+    "accepted": false,
+    "error_type": "value_error",
+    "error_message": "event result version differs from its published outcome"
+  },
+  "rejected_failure_event_result_version": {
+    "model": "RunEvent",
+    "accepted": false,
+    "error_type": "value_error",
+    "error_message": "event result version differs from its published outcome"
+  },
+  "rejected_progress_without_attempt": {
+    "model": "RunEvent",
+    "accepted": false,
+    "error_type": "value_error",
+    "error_message": "progress or completed event requires an attempt"
+  },
+  "rejected_queued_event_attempt": {
+    "model": "RunEvent",
+    "accepted": false,
+    "error_type": "value_error",
+    "error_message": "queued event has no current attempt"
+  },
+  "rejected_event_missing_explicit_version": {
+    "model": "RunEvent",
+    "accepted": false,
+    "error_type": "missing",
+    "error_message": "Field required"
+  },
+  "rejected_event_naive_time": {
+    "model": "RunEvent",
+    "accepted": false,
+    "error_type": "timezone_aware",
+    "error_message": null
+  },
+  "rejected_event_provider_body": {
+    "model": "RunEvent",
+    "accepted": false,
+    "error_type": "extra_forbidden",
+    "error_message": "Extra inputs are not permitted"
+  },
+  "rejected_batch_other_search": {
+    "model": "EventBatch",
+    "accepted": false,
+    "error_type": "value_error",
+    "error_message": "event batch mixes search or run identities"
+  },
+  "rejected_batch_other_run": {
+    "model": "EventBatch",
+    "accepted": false,
+    "error_type": "value_error",
+    "error_message": "event batch mixes search or run identities"
+  },
+  "rejected_batch_duplicate": {
+    "model": "EventBatch",
+    "accepted": false,
+    "error_type": "value_error",
+    "error_message": "event sequences must be strictly increasing"
+  },
+  "rejected_batch_decreasing": {
+    "model": "EventBatch",
+    "accepted": false,
+    "error_type": "value_error",
+    "error_message": "event sequences must be strictly increasing"
+  },
+  "rejected_watch_negative": {
+    "model": "WatchRunRequest",
+    "accepted": false,
+    "error_type": "greater_than_equal",
+    "error_message": null
+  },
+  "rejected_watch_boolean": {
+    "model": "WatchRunRequest",
+    "accepted": false,
+    "error_type": "int_type",
+    "error_message": null
+  },
+  "rejected_invalid_current_coordinates": {
+    "model": "ResolveLocationRequest",
+    "accepted": false,
+    "error_type": "less_than_equal",
+    "error_message": null
+  },
+  "rejected_unresolved_start": {
+    "model": "StartRunRequest",
+    "accepted": false,
+    "error_type": "missing",
+    "error_message": "Field required"
+  },
+  "rejected_choice_without_offering_version": {
+    "model": "ChooseFoodRequest",
+    "accepted": false,
+    "error_type": "missing",
+    "error_message": "Field required"
+  },
+  "rejected_choice_snapshot_as_version": {
+    "model": "ChooseFoodRequest",
+    "accepted": false,
+    "error_type": "string_pattern_mismatch",
+    "error_message": null
+  },
+  "rejected_freeform_food_choice": {
+    "model": "ChooseFoodRequest",
+    "accepted": false,
+    "error_type": "extra_forbidden",
+    "error_message": "Extra inputs are not permitted"
+  },
+  "rejected_first_admission_completed": {
+    "model": "CommandResponse",
+    "accepted": false,
+    "error_type": "value_error",
+    "error_message": "first command admission requires queued state"
+  },
+  "rejected_cancel_claims_completion": {
+    "model": "CancelRunResponse",
+    "accepted": false,
+    "error_type": "value_error",
+    "error_message": "cancel disposition contradicts current run state"
+  },
+  "rejected_error_provider_body": {
+    "model": "ErrorResponse",
+    "accepted": false,
+    "error_type": "extra_forbidden",
+    "error_message": "Extra inputs are not permitted"
+  }
+}

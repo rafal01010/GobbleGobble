@@ -1,0 +1,21 @@
+{
+  "run": {
+    "search_id": "search_example",
+    "run_id": "run_example",
+    "operation": "initial",
+    "attempt_id": "attempt_1",
+    "state": {
+      "status": "completed",
+      "outcome": {
+        "kind": "technical_failure",
+        "code": "provider_unavailable",
+        "message": "Research could not finish because a service was unavailable.",
+        "retryable": true,
+        "version_id": "ver_initial"
+      }
+    },
+    "last_event_sequence": 5
+  },
+  "recommendations": null,
+  "display_version_id": null
+}

@@ -1,0 +1,100 @@
+{
+  "place_ids": [
+    "branch_a",
+    "branch_b"
+  ],
+  "sources": [
+    {
+      "source_id": "src_google_a",
+      "subject_place_ids": [
+        "branch_a"
+      ],
+      "publisher": "Google Maps",
+      "source_url": "https://example.invalid/src_google_a",
+      "attribution_ids": [
+        "author_example"
+      ],
+      "origin": {
+        "kind": "google",
+        "branch": {
+          "feature_id": "0xa:0x1"
+        },
+        "access_method": "anonymous"
+      },
+      "policy": {
+        "access": {
+          "decision": "unknown",
+          "basis": "Synthetic policy declaration."
+        },
+        "display": {
+          "decision": "unknown",
+          "basis": "Synthetic policy declaration."
+        },
+        "model_input": {
+          "decision": "unknown",
+          "basis": "Synthetic policy declaration."
+        },
+        "derived_output": {
+          "decision": "unknown",
+          "basis": "Synthetic policy declaration."
+        },
+        "tracing": {
+          "decision": "unknown",
+          "basis": "Synthetic policy declaration."
+        }
+      },
+      "retention": {
+        "raw_content": {
+          "mode": "ephemeral",
+          "basis": "Synthetic ephemeral example."
+        },
+        "derived_content": {
+          "mode": "ephemeral",
+          "basis": "Synthetic ephemeral example."
+        },
+        "identifiers": {
+          "mode": "unknown",
+          "basis": "Synthetic identifier policy."
+        }
+      }
+    }
+  ],
+  "attributions": [
+    {
+      "attribution_id": "author_example",
+      "kind": "author",
+      "name": "Maria Example",
+      "url": "https://example.invalid/public-profile"
+    }
+  ],
+  "evidence": [],
+  "food_claims": [],
+  "review_assessments": [
+    {
+      "assessment_id": "assessment_a",
+      "place_id": "branch_a",
+      "google": {
+        "status": "available",
+        "source_id": "src_google_a",
+        "sample": {
+          "state": "empty",
+          "evidence_ids": [],
+          "sample_size": 0,
+          "assessed_evidence_ids": [],
+          "assessed_count": 0,
+          "reported_total": 24,
+          "reported_total_basis": "Synthetic supplied listing count, not refreshed.",
+          "selection_method": "Bounded source-selected sample",
+          "requested_order": "relevant",
+          "observed_order": "unknown",
+          "bounds": {
+            "max_reviews": 2,
+            "max_pages": 1
+          },
+          "complete_history": false
+        }
+      },
+      "findings": []
+    }
+  ]
+}

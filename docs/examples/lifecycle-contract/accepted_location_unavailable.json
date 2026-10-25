@@ -1,0 +1,7 @@
+{
+  "outcome": {
+    "status": "provider_unavailable",
+    "message": "Location lookup is temporarily unavailable.",
+    "retryable": true
+  }
+}

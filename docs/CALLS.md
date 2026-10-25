@@ -2,11 +2,11 @@
 
 The goal is a complete, high-quality application. On 2026-10-24 the user removed legal clearance as a project completion gate. Google reviews remain mandatory and primary, using the demonstrated anonymous route. Wikivoyage is excluded. Attribution, privacy, explicit retention decisions and all technical quality gates remain required. GG-002.06A adds narrow admission for minimized anonymous Google review evidence. Ordinary Google, Grounding Lite and unknown publisher model inputs remain blocked. GG-009.01B completion does not mean that integration is implemented.
 
-GG-002.03 adds `apps/backend/app/core/calls.py`. Future geographic and OpenAI adapters use one `AttemptCalls` instance to share a request allowance and total deadline. This module implements no transport, provider client, probe, SDK runner, or persistence. It reads no configuration file and selects no provider or model. GG-002.03 is implemented, awaiting section verification at GG-003.
+GG-002.03 adds `apps/backend/app/core/calls.py`. Future geographic and OpenAI adapters use one `AttemptCalls` instance to share a request allowance and total deadline. This module implements no transport, provider client, probe, SDK runner, or persistence. It reads no configuration file and selects no provider or model. GG-002.03 passed [GG-003 Section A verification](FEASIBILITY_GATE.md).
 
 ## Interface
 
-`AttemptCalls(settings, Bounds(max_requests=..., total_seconds=...))` starts an attempt inside a running asyncio event loop. `settings` is the existing typed result of `load_settings`. Both bounds are explicit caller inputs. There are no default attempt allowances. GG-002.06A adds independent review configuration described below. The probe command will declare its inventory in GG-002.08.
+`AttemptCalls(settings, Bounds(max_requests=..., total_seconds=...))` starts an attempt inside a running asyncio event loop. `settings` is the existing typed result of `load_settings`. Both bounds are explicit caller inputs. There are no default attempt allowances. GG-002.06A adds independent review configuration described below. The [bounded probe command](LIVE_PROBES.md) declares its scenario inventory and reuses one shared attempt in combined mode. Its behavioral controls and bounded live feasibility were verified at GG-003.
 
 GG-002.04 adds a read-only `settings` property returning that frozen configuration. The [geographic client](GEOGRAPHY_PROBES.md) derives its provider and credential from this exact object, keeping its request identity aligned with receipts while sharing the attempt allowance.
 
@@ -57,7 +57,7 @@ A callback cannot recursively invoke this call layer. An inherited context guard
 
 The executor checks the deadline after callback completion. Late output cannot become success, including when a callback suppresses timeout cancellation. Deadlines require cooperative async callbacks. A blocked event loop or cancellation-resistant transport can delay return. Local cancellation cannot retract remote work already dispatched or establish whether the provider billed it.
 
-Each callback must perform exactly one transport attempt. Adapters must disable hidden SDK retries, redirects, pagination, polling, reconnects, and background requests, or admit each transmission separately. The generic executor cannot inspect arbitrary callback behavior. An entire agent run cannot be counted as one network request. Hosted provider tool work also needs separate reported usage where available. GG-002.04 prepares these transport controls for Geoapify location/discovery. GG-002.05 reuses them for [walking and driving routes](ROUTE_PROBES.md). GG-002.06 prepares the [OpenAI web-research client](WEB_RESEARCH_PROBES.md) with a separate hosted-tool ceiling and ephemeral observations. Its `Usage.requests` counts the application transmission, not hosted calls. SDK orchestration controls remain GG-002.07. Verification remains GG-003.
+Each callback must perform exactly one transport attempt. Adapters must disable hidden SDK retries, redirects, pagination, polling, reconnects, and background requests, or admit each transmission separately. The generic executor cannot inspect arbitrary callback behavior. An entire agent run cannot be counted as one network request. Hosted provider tool work also needs separate reported usage where available. GG-002.04 prepares these transport controls for Geoapify location/discovery. GG-002.05 reuses them for [walking and driving routes](ROUTE_PROBES.md). GG-002.06 prepares the [OpenAI web-research client](WEB_RESEARCH_PROBES.md) with a separate hosted-tool ceiling and ephemeral observations. Its `Usage.requests` counts the application transmission, not hosted calls. The [GG-002.07 SDK probe](SDK_PROBE.md) accounts for each owner and nested research request separately, outside the runner loop. Bounded verification passed at GG-003.
 
 `attempt.receipts` returns immutable snapshots of admitted-call completion receipts. The history cannot exceed `max_requests`. Rejections return their receipt through `Stopped` without adding to that history. A task cancelled before `run` begins creates no invocation receipt. Receipts are in completion order and are not durable run events.
 
@@ -110,6 +110,8 @@ This schema-only example shows an omitted model identity and unavailable measure
 
 ## Source-use boundary
 
+The table below describes the existing probe guard. The user's 2026-10-25 [public-review revision](GOOGLE_REVIEWS.md#public-review-model-input-decision-2026-10-25) removes personal-information minimization as a requirement before public review text enters the model. GG-009.01/GG-009.01A must admit that approved review path without requiring `minimized_google_reviews` or the probe's personal-reference/vocabulary filters. This changes the planned rule for public place reviews; other Google products and unrelated imported sources keep separate decisions. Current runtime admission has not changed in this plan-only revision.
+
 The [integration findings](INTEGRATIONS.md#permission-findings) remain the policy record. The initial guard uses those findings without claiming completed publisher-policy enforcement.
 
 | Declared source or use | Admission rule |
@@ -124,7 +126,7 @@ The [integration findings](INTEGRATIONS.md#permission-findings) remain the polic
 
 Input-source declarations are a trusted adapter contract. The executor does not inspect prompts or response text. An API diagnostic result carries no permission to send its content into a model later. Source restrictions continue to apply to every downstream use.
 
-The module has no content sink or trace exporter. It neither enables nor configures the Agents SDK. SDK tracing, Responses storage options, provider-side logging, attribution display, publisher-specific retention, and dependent-claim restrictions require their scheduled implementations. A safe receipt grants none of those permissions. GG-009 owns the broader evidence-policy boundary.
+The module has no content sink or trace exporter. It neither enables nor configures the Agents SDK. The GG-002.07 probe configures SDK tracing and Responses storage controls. Runtime verification remains GG-003. Provider-side logging, attribution display, publisher-specific retention, and dependent-claim restrictions retain their separate requirements. A safe receipt grants none of those permissions. GG-009 owns the broader evidence-policy boundary.
 
 ## Verification boundary
 

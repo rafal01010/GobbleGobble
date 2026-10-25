@@ -1,0 +1,75 @@
+{
+  "run": {
+    "search_id": "search_example",
+    "run_id": "run_example",
+    "operation": "initial",
+    "attempt_id": "attempt_1",
+    "state": {
+      "status": "completed",
+      "outcome": {
+        "kind": "ready",
+        "version_id": "ver_initial"
+      }
+    },
+    "last_event_sequence": 5
+  },
+  "recommendations": {
+    "search_id": "search_example",
+    "request": {
+      "origin": {
+        "kind": "chosen",
+        "location": {
+          "coordinates": {
+            "latitude": 14.6,
+            "longitude": 121.0
+          },
+          "timezone": "Asia/Manila",
+          "name": "Synthetic origin"
+        }
+      },
+      "travel": {
+        "mode": "walk",
+        "minutes": 15
+      },
+      "eat_now_at": "2026-10-25T04:00:00Z"
+    },
+    "snapshots": [
+      {
+        "snapshot_id": "snap_initial",
+        "researched_candidates": [
+          {
+            "place_id": "branch_a",
+            "kind": "branch",
+            "name": "Synthetic branch",
+            "location": {
+              "coordinates": {
+                "latitude": 14.6,
+                "longitude": 121.0
+              },
+              "timezone": "Asia/Manila",
+              "name": "Synthetic origin"
+            }
+          }
+        ],
+        "evidence": {
+          "place_ids": [
+            "branch_a"
+          ]
+        }
+      }
+    ],
+    "versions": [
+      {
+        "version_id": "ver_initial",
+        "research_snapshot_id": "snap_initial",
+        "lineage": {
+          "kind": "initial"
+        },
+        "primaries": [],
+        "runners_up": [],
+        "shortfall_reason": "Only one option in this synthetic assessed scope."
+      }
+    ]
+  },
+  "display_version_id": "ver_initial"
+}

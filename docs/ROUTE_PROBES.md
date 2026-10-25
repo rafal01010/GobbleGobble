@@ -1,6 +1,6 @@
 # Walking and driving route probes
 
-GG-002.05 prepares point-to-point route requests in `apps/backend/app/providers/geoapify.py`. Implementation awaits section verification at GG-003. No route has been measured by this task. The probe command remains GG-002.08.
+GG-002.05 prepares point-to-point route requests in `apps/backend/app/providers/geoapify.py`. Implementation awaits section verification at GG-003. No route has been measured by this task. The [bounded probe command](LIVE_PROBES.md) connects walking and driving scenarios for GG-003.
 
 ## Interface and configuration
 
@@ -36,12 +36,12 @@ The request follows the [official Geoapify routing reference](https://apidocs.ge
 
 Routing waypoints use latitude before longitude. This differs from the longitude-first Places filter. The client owns wire ordering.
 
-A JSON response requires a `results` list containing zero or one route. A route requires finite, nonnegative `time` and `distance`, and `distance_units="Meters"`. Time maps directly to seconds and distance maps directly to metres. Extra geometry, legs, instructions, and unrelated fields are ignored. Missing metrics, wrong units, invalid numbers, malformed JSON, or multiple unexpected routes fail validation. A valid provider-supplied zero remains zero. No distance or duration is calculated locally.
+A JSON response requires a `results` list containing zero or one route. A route requires finite, nonnegative `time` and `distance`, and `distance_units="meters"`. Time maps directly to seconds and distance maps directly to metres. Extra geometry, legs, instructions, and unrelated fields are ignored. Missing metrics, wrong units, invalid numbers, malformed JSON, or multiple unexpected routes fail validation. A valid provider-supplied zero remains zero. No distance or duration is calculated locally.
 
 These synthetic contract examples contain no actual route observations:
 
 ```json
-{"results": [{"time": 540.5, "distance": 680.0, "distance_units": "Meters"}]}
+{"results": [{"time": 540.5, "distance": 680.0, "distance_units": "meters"}]}
 ```
 
 ```json

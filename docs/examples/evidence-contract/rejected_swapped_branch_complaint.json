@@ -1,0 +1,231 @@
+{
+  "place_ids": [
+    "branch_a",
+    "branch_b"
+  ],
+  "sources": [
+    {
+      "source_id": "src_google_a",
+      "subject_place_ids": [
+        "branch_a"
+      ],
+      "publisher": "Google Maps",
+      "source_url": "https://example.invalid/src_google_a",
+      "attribution_ids": [
+        "author_example"
+      ],
+      "origin": {
+        "kind": "google",
+        "branch": {
+          "feature_id": "0xa:0x1"
+        },
+        "access_method": "anonymous"
+      },
+      "policy": {
+        "access": {
+          "decision": "unknown",
+          "basis": "Synthetic policy declaration."
+        },
+        "display": {
+          "decision": "unknown",
+          "basis": "Synthetic policy declaration."
+        },
+        "model_input": {
+          "decision": "unknown",
+          "basis": "Synthetic policy declaration."
+        },
+        "derived_output": {
+          "decision": "unknown",
+          "basis": "Synthetic policy declaration."
+        },
+        "tracing": {
+          "decision": "unknown",
+          "basis": "Synthetic policy declaration."
+        }
+      },
+      "retention": {
+        "raw_content": {
+          "mode": "ephemeral",
+          "basis": "Synthetic ephemeral example."
+        },
+        "derived_content": {
+          "mode": "ephemeral",
+          "basis": "Synthetic ephemeral example."
+        },
+        "identifiers": {
+          "mode": "unknown",
+          "basis": "Synthetic identifier policy."
+        }
+      }
+    },
+    {
+      "source_id": "src_google_b",
+      "subject_place_ids": [
+        "branch_b"
+      ],
+      "publisher": "Google Maps",
+      "source_url": "https://example.invalid/src_google_b",
+      "attribution_ids": [
+        "author_example"
+      ],
+      "origin": {
+        "kind": "google",
+        "branch": {
+          "feature_id": "0xb:0x2"
+        },
+        "access_method": "anonymous"
+      },
+      "policy": {
+        "access": {
+          "decision": "unknown",
+          "basis": "Synthetic policy declaration."
+        },
+        "display": {
+          "decision": "unknown",
+          "basis": "Synthetic policy declaration."
+        },
+        "model_input": {
+          "decision": "unknown",
+          "basis": "Synthetic policy declaration."
+        },
+        "derived_output": {
+          "decision": "unknown",
+          "basis": "Synthetic policy declaration."
+        },
+        "tracing": {
+          "decision": "unknown",
+          "basis": "Synthetic policy declaration."
+        }
+      },
+      "retention": {
+        "raw_content": {
+          "mode": "ephemeral",
+          "basis": "Synthetic ephemeral example."
+        },
+        "derived_content": {
+          "mode": "ephemeral",
+          "basis": "Synthetic ephemeral example."
+        },
+        "identifiers": {
+          "mode": "unknown",
+          "basis": "Synthetic identifier policy."
+        }
+      }
+    }
+  ],
+  "attributions": [
+    {
+      "attribution_id": "author_example",
+      "kind": "author",
+      "name": "Maria Example",
+      "url": "https://example.invalid/public-profile"
+    }
+  ],
+  "evidence": [
+    {
+      "evidence_id": "ev_review_a",
+      "source_id": "src_google_a",
+      "subject_place_ids": [
+        "branch_a"
+      ],
+      "statement": "Hindi masarap ang sabaw. I said, \"not worth the price\".",
+      "locator": {
+        "kind": "google_review",
+        "branch": {
+          "feature_id": "0xa:0x1"
+        },
+        "review_id": "public_review_ev_review_a",
+        "source_url": "https://example.invalid/review/ev_review_a",
+        "link_basis": "review",
+        "exact_quote": "Hindi masarap ang sabaw. I said, \"not worth the price\"."
+      },
+      "attribution_ids": [
+        "author_example"
+      ],
+      "freshness": {
+        "retrieved_at": "2026-10-25T04:00:00Z",
+        "observed_at": null,
+        "fresh_until": null,
+        "basis": "Synthetic observation, freshness duration unknown."
+      }
+    },
+    {
+      "evidence_id": "ev_review_b",
+      "source_id": "src_google_b",
+      "subject_place_ids": [
+        "branch_b"
+      ],
+      "statement": "My soup arrived cold.",
+      "locator": {
+        "kind": "google_review",
+        "branch": {
+          "feature_id": "0xb:0x2"
+        },
+        "review_id": "public_review_ev_review_b",
+        "source_url": "https://example.invalid/review/ev_review_b",
+        "link_basis": "review",
+        "exact_quote": "My soup arrived cold."
+      },
+      "attribution_ids": [
+        "author_example"
+      ],
+      "freshness": {
+        "retrieved_at": "2026-10-25T04:00:00Z",
+        "observed_at": null,
+        "fresh_until": null,
+        "basis": "Synthetic observation, freshness duration unknown."
+      }
+    }
+  ],
+  "food_claims": [],
+  "review_assessments": [
+    {
+      "assessment_id": "assessment_a",
+      "place_id": "branch_a",
+      "google": {
+        "status": "available",
+        "source_id": "src_google_a",
+        "sample": {
+          "state": "present",
+          "evidence_ids": [
+            "ev_review_a"
+          ],
+          "sample_size": 1,
+          "assessed_evidence_ids": [
+            "ev_review_a"
+          ],
+          "assessed_count": 1,
+          "reported_total": 24,
+          "reported_total_basis": "Synthetic supplied listing count, not refreshed.",
+          "selection_method": "Bounded source-selected sample",
+          "requested_order": "relevant",
+          "observed_order": "unknown",
+          "bounds": {
+            "max_reviews": 2,
+            "max_pages": 1
+          },
+          "complete_history": false,
+          "partial": true,
+          "qualification": "A usable first page preceded a transport failure.",
+          "omissions": [
+            "Later pages were not retrieved."
+          ]
+        }
+      },
+      "findings": [
+        {
+          "topic": "complaint",
+          "statement": "The sampled reviewer disliked the soup and its value.",
+          "subjects": [
+            {
+              "place_id": "branch_a",
+              "evidence_ids": [
+                "ev_review_b"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

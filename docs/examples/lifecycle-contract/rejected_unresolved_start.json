@@ -1,0 +1,14 @@
+{
+  "command_id": "command_start",
+  "request": {
+    "origin": {
+      "kind": "chosen",
+      "query": "Synthetic district"
+    },
+    "travel": {
+      "mode": "walk",
+      "minutes": 15
+    },
+    "eat_now_at": "2026-10-25T04:00:00Z"
+  }
+}

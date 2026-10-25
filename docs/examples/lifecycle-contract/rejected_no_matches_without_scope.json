@@ -1,0 +1,19 @@
+{
+  "run": {
+    "search_id": "search_example",
+    "run_id": "run_example",
+    "operation": "initial",
+    "attempt_id": "attempt_1",
+    "state": {
+      "status": "completed",
+      "outcome": {
+        "kind": "no_matches",
+        "assessed_scope": "",
+        "explanation": "The assessed eligible places did not meet this request."
+      }
+    },
+    "last_event_sequence": 5
+  },
+  "recommendations": null,
+  "display_version_id": null
+}

@@ -1,0 +1,12 @@
+{
+  "origin": {
+    "kind": "chosen",
+    "location": {
+      "coordinates": {"latitude": 35.0, "longitude": 139.0},
+      "timezone": "Asia/Tokyo",
+      "name": "Illustrative chosen location"
+    }
+  },
+  "travel": {"mode": "drive", "minutes": 30},
+  "eat_now_at": "2026-10-25T03:00:00Z"
+}

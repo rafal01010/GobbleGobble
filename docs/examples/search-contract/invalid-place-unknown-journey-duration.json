@@ -1,0 +1,10 @@
+{
+  "place_id": "example-place-branch-03",
+  "kind": "branch",
+  "location": {
+    "coordinates": {"latitude": 35.004, "longitude": 139.004},
+    "timezone": "Asia/Tokyo"
+  },
+  "journey": {"status": "unknown", "duration_seconds": 600},
+  "opening": {"status": "unknown"}
+}

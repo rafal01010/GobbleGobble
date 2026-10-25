@@ -1,0 +1,10 @@
+{
+  "origin": {
+    "kind": "current",
+    "location": {
+      "coordinates": {"latitude": 91, "longitude": 139},
+      "timezone": "Asia/Tokyo"
+    }
+  },
+  "eat_now_at": "2026-10-25T03:00:00Z"
+}

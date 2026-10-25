@@ -1,0 +1,11 @@
+{
+  "search_id": "search_example",
+  "run_id": "run_example",
+  "command_id": "command_choose",
+  "selection": {
+    "kind": "food_choice",
+    "choice": {
+      "choice_id": "noodles"
+    }
+  }
+}

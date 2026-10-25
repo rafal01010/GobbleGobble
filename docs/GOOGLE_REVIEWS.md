@@ -4,6 +4,16 @@ Google reviews are a primary, integral source in GobbleGobble. The selected path
 
 The [feasibility decision](REVIEW_FEASIBILITY.md) completes GG-009.01B using actual package extraction and the specifically approved Google-to-model pilot. The user removed legal clearance as a completion gate and reaffirmed full application quality. Historical commercial findings remain informational. GG-002.06A completed branch matching over supplied candidates, bounded retrieval and narrow admission for minimized anonymous review evidence. Later two-branch comparisons exercised the prepared client, and the user selected it alone without an alternate Google scraper. The [probe reference](GOOGLE_REVIEW_PROBES.md) records configuration, limits, retention and comparison evidence. Full behavioral and live verification remain at GG-003. Google stays primary, independent sources supplementary only, and Wikivoyage excluded.
 
+## Public review model-input decision, 2026-10-25
+
+The user removed personal-information minimization as a requirement for public place reviews sent to the configured model. Public review text and available public reviewer attribution may enter inference without personal-data stripping, anonymization or personal-narrative filtering. Names, pronouns, first-person experiences and personal references are not rejection criteria. Personal-information minimization is not a setup prerequisite or reason to mark public reviews unavailable.
+
+The production path must replace the feasibility probe's fixed vocabulary, English-only, positive-only and blanket negation/quotation/context filters. Relevant review evidence includes food, service, complaints, disagreement and local-language content. The model interprets that evidence with its source references. Derived claims must be supported; a supported paraphrase need not repeat the source word for word, while a direct quotation must be exact. Retrieved text remains data rather than instructions.
+
+GG-009.01 updates source admission for this approved public-review path. GG-009.01A replaces the input path, GG-009.04 implements review interpretation and GG-010.03 connects it to the actual SDK agent. GG-011 must retest both Toyo Eatery and Ippei Honten and prove that relevant reviews reached inference and supported the returned findings. Another successful restaurant cannot replace those regressions.
+
+Bounded retrieval, context fitting, explicit omissions, branch identity and attribution remain required. Storage/tracing decisions and protection of credentials and precise user location are separate. Older minimization and privacy-vocabulary descriptions below are historical probe behavior, not continuing production requirements. This revision changes the plan and documentation only; the runtime probe filter remains until its assigned implementation tasks replace it.
+
 ## Primary source and fallback
 
 The Google review source is independent of the geography provider. Geoapify may supply coordinates, discovery and journeys while Google supplies review information. Generic web research must not silently replace an available configured Google review path.
@@ -42,11 +52,15 @@ The [Maps terms, section 3.2.3](https://cloud.google.com/maps-platform/terms) re
 
 The initial design keeps review text and restricted metadata ephemeral. Saved results, events, checkpoints, traces, screenshots and diagnostic evidence must not become a review archive. Store only specifically permitted identifiers and metadata. Reacquire review content on demand rather than restoring prohibited payloads from SQLite or browser storage. A fresh response is not permission to retain it. A rewritten summary is not automatically exempt from its source's restrictions.
 
+## Historical bounded probe evidence repair
+
+GG-002.07A was admitted on 2026-10-25 as a prerequisite to renewed GG-003 acceptance. It preserves the existing anonymous-review lineage and English privacy vocabulary. The probe can inspect at most twenty fetched reviews, while model input remains at most three exact source passages and sixty words. Exact delimiter-bounded clauses may qualify after conservative checks for recognized enclosing-context markers; arbitrary token deletion and raw-review transmission do not. Concrete positive food targets are explicit, and generic or ambiguous evidence produces unavailable status without a model call. Source indices and offsets remain ephemeral outside model input. This changes selection within the current source path, not source admission, attribution, retention, tracing or model choice. [The probe reference](GOOGLE_REVIEW_PROBES.md#minimized-model-input-and-retention) records the operational contract.
+
 ## Model use and supported workarounds
 
 API access and display do not by themselves settle model input, generated findings, or storage permission. The ordinary Maps terms restrict creation of content from Google content. Maps Grounding Lite has separate, conditional grounding provisions and additional output/caching restrictions under [section 10 of the service terms](https://cloud.google.com/maps-platform/terms/maps-service-terms). It is not an interchangeable entitlement for Places review text.
 
-The completed investigation compared official products, anonymous access, third-party providers and independent sources. The selected path is bounded anonymous Google retrieval, with minimized model input. API access and display rules below remain conditional reference information, not a reason to block this path under the current project requirements.
+The completed investigation compared official products, anonymous access, third-party providers and independent sources. The selected path is bounded anonymous Google retrieval, with public review model input governed by the revision above. API access and display rules below remain conditional reference information, not a reason to block this path under the current project requirements.
 
 GG-009.01B explicitly includes access outside the official API. Investigate existing extraction tools, public-page scraping or browser extraction, third-party Google review providers, search-index access, and manual imports or user-supplied reviews. The user's yt-dlp transcription example describes the access-method analogy, not a Google review tool recommendation. Compare availability, payment, branch identity, coverage, sample ordering, freshness, reliability, maintenance and automation suitability. Assess the terms and evidence applicable to each route's access, model input, generated recommendations, attribution, storage and tracing. Do not assume Places API terms apply identically to every route or that non-API access is unrestricted. Technical extraction and supported downstream use require separate findings. The investigation also assesses independent-source viability with no Google services, including coverage gaps and any required product changes. These are research candidates, not approved integrations. Selected validation stays within the task's existing limits; substantial extraction or integration work requires a separate task and any primary-source change requires the reviewed plan decision.
 
@@ -71,7 +85,7 @@ GG-009.01B and GG-002.06A are complete. The latter prepared the client without l
 
 ## Commercial feasibility continuation
 
-The earlier [commercial source-flow assessment](REVIEW_FEASIBILITY.md#commercial-assessment-and-concrete-unblock-conditions) is retained as historical evidence. The user removed legal clearance as a completion gate. That correction does not establish legal clearance. Technical source quality, attribution, privacy, retention and reliability requirements remain. No new configuration is needed for the demonstrated anonymous access.
+The earlier [commercial source-flow assessment](REVIEW_FEASIBILITY.md#commercial-assessment-and-concrete-unblock-conditions) is retained as historical evidence. The user removed legal clearance as a completion gate. That correction does not establish legal clearance. Technical source quality, attribution, retention and reliability requirements remain. Public-review model input follows the revision above without personal-information minimization. No new configuration is needed for the demonstrated anonymous access.
 
 The historical independent-source experiment does not satisfy the Google-primary requirement. The proposed primary-source amendment was rejected. Other sources may be considered as supplements only.
 

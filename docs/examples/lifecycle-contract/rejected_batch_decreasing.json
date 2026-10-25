@@ -1,0 +1,32 @@
+{
+  "search_id": "search_example",
+  "run_id": "run_example",
+  "events": [
+    {
+      "schema_version": 1,
+      "search_id": "search_example",
+      "run_id": "run_example",
+      "attempt_id": "attempt_1",
+      "sequence": 3,
+      "occurred_at": "2026-10-25T04:00:00Z",
+      "result_version_id": null,
+      "payload": {
+        "kind": "progress",
+        "stage": "researching"
+      }
+    },
+    {
+      "schema_version": 1,
+      "search_id": "search_example",
+      "run_id": "run_example",
+      "attempt_id": "attempt_2",
+      "sequence": 2,
+      "occurred_at": "2026-10-25T04:00:00Z",
+      "result_version_id": null,
+      "payload": {
+        "kind": "progress",
+        "stage": "researching"
+      }
+    }
+  ]
+}

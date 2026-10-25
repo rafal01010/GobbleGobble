@@ -1,0 +1,15 @@
+{
+  "origin": {
+    "kind": "chosen",
+    "location": {
+      "coordinates": {"latitude": 35.0, "longitude": 139.0},
+      "timezone": "Asia/Tokyo",
+      "name": "Illustrative chosen location",
+      "provider_refs": [
+        {"provider": "example-geography", "provider_id": "example-origin-01"}
+      ]
+    }
+  },
+  "travel": {"mode": "walk", "minutes": 22},
+  "eat_now_at": "2026-10-25T12:00:00+09:00"
+}

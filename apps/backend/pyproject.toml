@@ -7,6 +7,7 @@ dependencies = [
     "fastapi>=0.161.0,<0.162",
     "uvicorn>=0.54.0,<0.55",
     "httpx>=0.28.1,<0.29",
+    "httpx2>=2.16.0,<3",
     "openai>=3.36.1,<4",
     "openai-agents>=0.24.0,<0.25",
     "pydantic>=2.14.1,<3",

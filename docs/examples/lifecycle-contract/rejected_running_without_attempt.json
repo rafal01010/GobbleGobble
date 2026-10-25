@@ -1,0 +1,11 @@
+{
+  "search_id": "search_example",
+  "run_id": "run_example",
+  "operation": "initial",
+  "attempt_id": null,
+  "state": {
+    "status": "running",
+    "stage": "researching"
+  },
+  "last_event_sequence": 5
+}

@@ -1,0 +1,1393 @@
+{
+  "search_id": "search_example",
+  "request": {
+    "origin": {
+      "kind": "chosen",
+      "location": {
+        "coordinates": {
+          "latitude": 14.6,
+          "longitude": 121.0
+        },
+        "timezone": "Asia/Manila",
+        "name": "Synthetic origin"
+      }
+    },
+    "travel": {
+      "mode": "walk",
+      "minutes": 15
+    },
+    "eat_now_at": "2026-10-25T04:00:00Z"
+  },
+  "snapshots": [
+    {
+      "snapshot_id": "snap_initial",
+      "discovery_leads": [
+        {
+          "place_id": "branch_lead",
+          "kind": "branch",
+          "name": "Example lead",
+          "branch_label": "Synthetic branch lead",
+          "location": {
+            "coordinates": {
+              "latitude": 14.6,
+              "longitude": 121.0
+            },
+            "timezone": "Asia/Manila"
+          },
+          "journey": {
+            "status": "unknown"
+          },
+          "opening": {
+            "status": "unknown"
+          }
+        }
+      ],
+      "researched_candidates": [
+        {
+          "place_id": "branch_a",
+          "kind": "branch",
+          "name": "Example a",
+          "branch_label": "Synthetic branch a",
+          "location": {
+            "coordinates": {
+              "latitude": 14.6,
+              "longitude": 121.0
+            },
+            "timezone": "Asia/Manila"
+          },
+          "journey": {
+            "status": "unknown"
+          },
+          "opening": {
+            "status": "unknown"
+          }
+        },
+        {
+          "place_id": "branch_b",
+          "kind": "branch",
+          "name": "Example b",
+          "branch_label": "Synthetic branch b",
+          "location": {
+            "coordinates": {
+              "latitude": 14.6,
+              "longitude": 121.0
+            },
+            "timezone": "Asia/Manila"
+          },
+          "journey": {
+            "status": "unknown"
+          },
+          "opening": {
+            "status": "unknown"
+          }
+        },
+        {
+          "place_id": "branch_c",
+          "kind": "branch",
+          "name": "Example c",
+          "branch_label": "Synthetic branch c",
+          "location": {
+            "coordinates": {
+              "latitude": 14.6,
+              "longitude": 121.0
+            },
+            "timezone": "Asia/Manila"
+          },
+          "journey": {
+            "status": "unknown"
+          },
+          "opening": {
+            "status": "unknown"
+          }
+        },
+        {
+          "place_id": "branch_d",
+          "kind": "branch",
+          "name": "Example d",
+          "branch_label": "Synthetic branch d",
+          "location": {
+            "coordinates": {
+              "latitude": 14.6,
+              "longitude": 121.0
+            },
+            "timezone": "Asia/Manila"
+          },
+          "journey": {
+            "status": "unknown"
+          },
+          "opening": {
+            "status": "unknown"
+          }
+        },
+        {
+          "place_id": "branch_e",
+          "kind": "branch",
+          "name": "Example e",
+          "branch_label": "Synthetic branch e",
+          "location": {
+            "coordinates": {
+              "latitude": 14.6,
+              "longitude": 121.0
+            },
+            "timezone": "Asia/Manila"
+          },
+          "journey": {
+            "status": "unknown"
+          },
+          "opening": {
+            "status": "unknown"
+          }
+        },
+        {
+          "place_id": "branch_f",
+          "kind": "branch",
+          "name": "Example f",
+          "branch_label": "Synthetic branch f",
+          "location": {
+            "coordinates": {
+              "latitude": 14.6,
+              "longitude": 121.0
+            },
+            "timezone": "Asia/Manila"
+          },
+          "journey": {
+            "status": "unknown"
+          },
+          "opening": {
+            "status": "unknown"
+          }
+        },
+        {
+          "place_id": "branch_g",
+          "kind": "branch",
+          "name": "Example g",
+          "branch_label": "Synthetic branch g",
+          "location": {
+            "coordinates": {
+              "latitude": 14.6,
+              "longitude": 121.0
+            },
+            "timezone": "Asia/Manila"
+          },
+          "journey": {
+            "status": "unknown"
+          },
+          "opening": {
+            "status": "unknown"
+          }
+        },
+        {
+          "place_id": "branch_h",
+          "kind": "branch",
+          "name": "Example h",
+          "branch_label": "Synthetic branch h",
+          "location": {
+            "coordinates": {
+              "latitude": 14.6,
+              "longitude": 121.0
+            },
+            "timezone": "Asia/Manila"
+          },
+          "journey": {
+            "status": "unknown"
+          },
+          "opening": {
+            "status": "unknown"
+          }
+        }
+      ],
+      "evidence": {
+        "place_ids": [
+          "branch_a",
+          "branch_b",
+          "branch_c",
+          "branch_d",
+          "branch_e",
+          "branch_f",
+          "branch_g",
+          "branch_h",
+          "branch_lead"
+        ],
+        "sources": [
+          {
+            "source_id": "src_group",
+            "subject_place_ids": [
+              "branch_a",
+              "branch_b",
+              "branch_c",
+              "branch_d",
+              "branch_e",
+              "branch_f",
+              "branch_g",
+              "branch_h"
+            ],
+            "publisher": "Example group",
+            "source_url": "https://example.invalid/menu",
+            "origin": {
+              "kind": "independent",
+              "access_method": "public_page"
+            },
+            "policy": {
+              "access": {
+                "decision": "unknown",
+                "basis": "Synthetic policy declaration."
+              },
+              "display": {
+                "decision": "unknown",
+                "basis": "Synthetic policy declaration."
+              },
+              "model_input": {
+                "decision": "unknown",
+                "basis": "Synthetic policy declaration."
+              },
+              "derived_output": {
+                "decision": "unknown",
+                "basis": "Synthetic policy declaration."
+              },
+              "tracing": {
+                "decision": "unknown",
+                "basis": "Synthetic policy declaration."
+              }
+            },
+            "retention": {
+              "raw_content": {
+                "mode": "ephemeral",
+                "basis": "Synthetic ephemeral content."
+              },
+              "derived_content": {
+                "mode": "ephemeral",
+                "basis": "Synthetic ephemeral content."
+              },
+              "identifiers": {
+                "mode": "ephemeral",
+                "basis": "Synthetic ephemeral content."
+              }
+            }
+          }
+        ],
+        "evidence": [
+          {
+            "evidence_id": "ev_menu_a",
+            "source_id": "src_group",
+            "subject_place_ids": [
+              "branch_a"
+            ],
+            "statement": "The synthetic menu lists noodles for branch a.",
+            "locator": {
+              "kind": "document",
+              "section": "Branch a"
+            },
+            "freshness": {
+              "retrieved_at": "2026-10-25T04:00:00Z",
+              "basis": "Synthetic observation with unknown freshness duration."
+            }
+          },
+          {
+            "evidence_id": "ev_menu_b",
+            "source_id": "src_group",
+            "subject_place_ids": [
+              "branch_b"
+            ],
+            "statement": "The synthetic menu lists noodles for branch b.",
+            "locator": {
+              "kind": "document",
+              "section": "Branch b"
+            },
+            "freshness": {
+              "retrieved_at": "2026-10-25T04:00:00Z",
+              "basis": "Synthetic observation with unknown freshness duration."
+            }
+          },
+          {
+            "evidence_id": "ev_menu_c",
+            "source_id": "src_group",
+            "subject_place_ids": [
+              "branch_c"
+            ],
+            "statement": "The synthetic menu lists noodles for branch c.",
+            "locator": {
+              "kind": "document",
+              "section": "Branch c"
+            },
+            "freshness": {
+              "retrieved_at": "2026-10-25T04:00:00Z",
+              "basis": "Synthetic observation with unknown freshness duration."
+            }
+          },
+          {
+            "evidence_id": "ev_menu_d",
+            "source_id": "src_group",
+            "subject_place_ids": [
+              "branch_d"
+            ],
+            "statement": "The synthetic menu lists noodles for branch d.",
+            "locator": {
+              "kind": "document",
+              "section": "Branch d"
+            },
+            "freshness": {
+              "retrieved_at": "2026-10-25T04:00:00Z",
+              "basis": "Synthetic observation with unknown freshness duration."
+            }
+          },
+          {
+            "evidence_id": "ev_menu_e",
+            "source_id": "src_group",
+            "subject_place_ids": [
+              "branch_e"
+            ],
+            "statement": "The synthetic menu lists noodles for branch e.",
+            "locator": {
+              "kind": "document",
+              "section": "Branch e"
+            },
+            "freshness": {
+              "retrieved_at": "2026-10-25T04:00:00Z",
+              "basis": "Synthetic observation with unknown freshness duration."
+            }
+          },
+          {
+            "evidence_id": "ev_menu_f",
+            "source_id": "src_group",
+            "subject_place_ids": [
+              "branch_f"
+            ],
+            "statement": "The synthetic menu lists noodles for branch f.",
+            "locator": {
+              "kind": "document",
+              "section": "Branch f"
+            },
+            "freshness": {
+              "retrieved_at": "2026-10-25T04:00:00Z",
+              "basis": "Synthetic observation with unknown freshness duration."
+            }
+          },
+          {
+            "evidence_id": "ev_menu_g",
+            "source_id": "src_group",
+            "subject_place_ids": [
+              "branch_g"
+            ],
+            "statement": "The synthetic menu lists noodles for branch g.",
+            "locator": {
+              "kind": "document",
+              "section": "Branch g"
+            },
+            "freshness": {
+              "retrieved_at": "2026-10-25T04:00:00Z",
+              "basis": "Synthetic observation with unknown freshness duration."
+            }
+          },
+          {
+            "evidence_id": "ev_menu_h",
+            "source_id": "src_group",
+            "subject_place_ids": [
+              "branch_h"
+            ],
+            "statement": "The synthetic menu lists noodles for branch h.",
+            "locator": {
+              "kind": "document",
+              "section": "Branch h"
+            },
+            "freshness": {
+              "retrieved_at": "2026-10-25T04:00:00Z",
+              "basis": "Synthetic observation with unknown freshness duration."
+            }
+          },
+          {
+            "evidence_id": "ev_multi",
+            "source_id": "src_group",
+            "subject_place_ids": [
+              "branch_a",
+              "branch_b"
+            ],
+            "statement": "Both synthetic branches list noodles.",
+            "locator": {
+              "kind": "document",
+              "section": "Branch a"
+            },
+            "freshness": {
+              "retrieved_at": "2026-10-25T04:00:00Z",
+              "basis": "Synthetic observation with unknown freshness duration."
+            }
+          }
+        ],
+        "food_claims": [
+          {
+            "claim_id": "menu_a",
+            "status": "sourced",
+            "topic": "menu",
+            "statement": "The synthetic menu lists noodles for branch a.",
+            "subjects": [
+              {
+                "place_id": "branch_a",
+                "evidence_ids": [
+                  "ev_menu_a"
+                ]
+              }
+            ]
+          },
+          {
+            "claim_id": "menu_b",
+            "status": "sourced",
+            "topic": "menu",
+            "statement": "The synthetic menu lists noodles for branch b.",
+            "subjects": [
+              {
+                "place_id": "branch_b",
+                "evidence_ids": [
+                  "ev_menu_b"
+                ]
+              }
+            ]
+          },
+          {
+            "claim_id": "menu_c",
+            "status": "sourced",
+            "topic": "menu",
+            "statement": "The synthetic menu lists noodles for branch c.",
+            "subjects": [
+              {
+                "place_id": "branch_c",
+                "evidence_ids": [
+                  "ev_menu_c"
+                ]
+              }
+            ]
+          },
+          {
+            "claim_id": "menu_d",
+            "status": "sourced",
+            "topic": "menu",
+            "statement": "The synthetic menu lists noodles for branch d.",
+            "subjects": [
+              {
+                "place_id": "branch_d",
+                "evidence_ids": [
+                  "ev_menu_d"
+                ]
+              }
+            ]
+          },
+          {
+            "claim_id": "menu_e",
+            "status": "sourced",
+            "topic": "menu",
+            "statement": "The synthetic menu lists noodles for branch e.",
+            "subjects": [
+              {
+                "place_id": "branch_e",
+                "evidence_ids": [
+                  "ev_menu_e"
+                ]
+              }
+            ]
+          },
+          {
+            "claim_id": "menu_f",
+            "status": "sourced",
+            "topic": "menu",
+            "statement": "The synthetic menu lists noodles for branch f.",
+            "subjects": [
+              {
+                "place_id": "branch_f",
+                "evidence_ids": [
+                  "ev_menu_f"
+                ]
+              }
+            ]
+          },
+          {
+            "claim_id": "menu_g",
+            "status": "sourced",
+            "topic": "menu",
+            "statement": "The synthetic menu lists noodles for branch g.",
+            "subjects": [
+              {
+                "place_id": "branch_g",
+                "evidence_ids": [
+                  "ev_menu_g"
+                ]
+              }
+            ]
+          },
+          {
+            "claim_id": "menu_h",
+            "status": "sourced",
+            "topic": "menu",
+            "statement": "The synthetic menu lists noodles for branch h.",
+            "subjects": [
+              {
+                "place_id": "branch_h",
+                "evidence_ids": [
+                  "ev_menu_h"
+                ]
+              }
+            ]
+          },
+          {
+            "claim_id": "inferred_h",
+            "status": "inferred",
+            "topic": "food",
+            "statement": "Noodles are a suggested food option at synthetic branch h.",
+            "subjects": [
+              {
+                "place_id": "branch_h",
+                "evidence_ids": [
+                  "ev_menu_h"
+                ]
+              }
+            ],
+            "basis": "The branch-specific menu observation is the stated inference basis."
+          },
+          {
+            "claim_id": "price_a",
+            "status": "sourced",
+            "topic": "price",
+            "statement": "Synthetic price detail.",
+            "subjects": [
+              {
+                "place_id": "branch_a",
+                "evidence_ids": [
+                  "ev_menu_a"
+                ]
+              }
+            ]
+          },
+          {
+            "claim_id": "unknown_a",
+            "status": "unknown",
+            "topic": "food",
+            "subject_place_ids": [
+              "branch_a"
+            ],
+            "gap": "Current food availability is unconfirmed."
+          },
+          {
+            "claim_id": "shared_noodles",
+            "status": "sourced",
+            "topic": "food",
+            "statement": "Both synthetic branches list noodles.",
+            "subjects": [
+              {
+                "place_id": "branch_a",
+                "evidence_ids": [
+                  "ev_multi"
+                ]
+              },
+              {
+                "place_id": "branch_b",
+                "evidence_ids": [
+                  "ev_multi"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "snapshot_id": "snap_refined",
+      "discovery_leads": [
+        {
+          "place_id": "branch_lead",
+          "kind": "branch",
+          "name": "Example lead",
+          "branch_label": "Synthetic branch lead",
+          "location": {
+            "coordinates": {
+              "latitude": 14.6,
+              "longitude": 121.0
+            },
+            "timezone": "Asia/Manila"
+          },
+          "journey": {
+            "status": "unknown"
+          },
+          "opening": {
+            "status": "unknown"
+          }
+        }
+      ],
+      "researched_candidates": [
+        {
+          "place_id": "branch_a",
+          "kind": "branch",
+          "name": "Example a",
+          "branch_label": "Synthetic branch a",
+          "location": {
+            "coordinates": {
+              "latitude": 14.6,
+              "longitude": 121.0
+            },
+            "timezone": "Asia/Manila"
+          },
+          "journey": {
+            "status": "unknown"
+          },
+          "opening": {
+            "status": "unknown"
+          }
+        },
+        {
+          "place_id": "branch_b",
+          "kind": "branch",
+          "name": "Example b",
+          "branch_label": "Synthetic branch b",
+          "location": {
+            "coordinates": {
+              "latitude": 14.6,
+              "longitude": 121.0
+            },
+            "timezone": "Asia/Manila"
+          },
+          "journey": {
+            "status": "unknown"
+          },
+          "opening": {
+            "status": "unknown"
+          }
+        },
+        {
+          "place_id": "branch_c",
+          "kind": "branch",
+          "name": "Example c",
+          "branch_label": "Synthetic branch c",
+          "location": {
+            "coordinates": {
+              "latitude": 14.6,
+              "longitude": 121.0
+            },
+            "timezone": "Asia/Manila"
+          },
+          "journey": {
+            "status": "unknown"
+          },
+          "opening": {
+            "status": "unknown"
+          }
+        },
+        {
+          "place_id": "branch_d",
+          "kind": "branch",
+          "name": "Example d",
+          "branch_label": "Synthetic branch d",
+          "location": {
+            "coordinates": {
+              "latitude": 14.6,
+              "longitude": 121.0
+            },
+            "timezone": "Asia/Manila"
+          },
+          "journey": {
+            "status": "unknown"
+          },
+          "opening": {
+            "status": "unknown"
+          }
+        },
+        {
+          "place_id": "branch_e",
+          "kind": "branch",
+          "name": "Example e",
+          "branch_label": "Synthetic branch e",
+          "location": {
+            "coordinates": {
+              "latitude": 14.6,
+              "longitude": 121.0
+            },
+            "timezone": "Asia/Manila"
+          },
+          "journey": {
+            "status": "unknown"
+          },
+          "opening": {
+            "status": "unknown"
+          }
+        },
+        {
+          "place_id": "branch_f",
+          "kind": "branch",
+          "name": "Example f",
+          "branch_label": "Synthetic branch f",
+          "location": {
+            "coordinates": {
+              "latitude": 14.6,
+              "longitude": 121.0
+            },
+            "timezone": "Asia/Manila"
+          },
+          "journey": {
+            "status": "unknown"
+          },
+          "opening": {
+            "status": "unknown"
+          }
+        },
+        {
+          "place_id": "branch_g",
+          "kind": "branch",
+          "name": "Example g",
+          "branch_label": "Synthetic branch g",
+          "location": {
+            "coordinates": {
+              "latitude": 14.6,
+              "longitude": 121.0
+            },
+            "timezone": "Asia/Manila"
+          },
+          "journey": {
+            "status": "unknown"
+          },
+          "opening": {
+            "status": "unknown"
+          }
+        },
+        {
+          "place_id": "branch_h",
+          "kind": "branch",
+          "name": "Example h",
+          "branch_label": "Synthetic branch h",
+          "location": {
+            "coordinates": {
+              "latitude": 14.6,
+              "longitude": 121.0
+            },
+            "timezone": "Asia/Manila"
+          },
+          "journey": {
+            "status": "unknown"
+          },
+          "opening": {
+            "status": "unknown"
+          }
+        }
+      ],
+      "evidence": {
+        "place_ids": [
+          "branch_a",
+          "branch_b",
+          "branch_c",
+          "branch_d",
+          "branch_e",
+          "branch_f",
+          "branch_g",
+          "branch_h",
+          "branch_lead"
+        ],
+        "sources": [
+          {
+            "source_id": "src_group",
+            "subject_place_ids": [
+              "branch_a",
+              "branch_b",
+              "branch_c",
+              "branch_d",
+              "branch_e",
+              "branch_f",
+              "branch_g",
+              "branch_h"
+            ],
+            "publisher": "Example group",
+            "source_url": "https://example.invalid/menu",
+            "origin": {
+              "kind": "independent",
+              "access_method": "public_page"
+            },
+            "policy": {
+              "access": {
+                "decision": "unknown",
+                "basis": "Synthetic policy declaration."
+              },
+              "display": {
+                "decision": "unknown",
+                "basis": "Synthetic policy declaration."
+              },
+              "model_input": {
+                "decision": "unknown",
+                "basis": "Synthetic policy declaration."
+              },
+              "derived_output": {
+                "decision": "unknown",
+                "basis": "Synthetic policy declaration."
+              },
+              "tracing": {
+                "decision": "unknown",
+                "basis": "Synthetic policy declaration."
+              }
+            },
+            "retention": {
+              "raw_content": {
+                "mode": "ephemeral",
+                "basis": "Synthetic ephemeral content."
+              },
+              "derived_content": {
+                "mode": "ephemeral",
+                "basis": "Synthetic ephemeral content."
+              },
+              "identifiers": {
+                "mode": "ephemeral",
+                "basis": "Synthetic ephemeral content."
+              }
+            }
+          }
+        ],
+        "evidence": [
+          {
+            "evidence_id": "ev_menu_a",
+            "source_id": "src_group",
+            "subject_place_ids": [
+              "branch_a"
+            ],
+            "statement": "The synthetic menu lists noodles for branch a.",
+            "locator": {
+              "kind": "document",
+              "section": "Branch a"
+            },
+            "freshness": {
+              "retrieved_at": "2026-10-25T04:00:00Z",
+              "basis": "Synthetic observation with unknown freshness duration."
+            }
+          },
+          {
+            "evidence_id": "ev_menu_b",
+            "source_id": "src_group",
+            "subject_place_ids": [
+              "branch_b"
+            ],
+            "statement": "The synthetic menu lists noodles for branch b.",
+            "locator": {
+              "kind": "document",
+              "section": "Branch b"
+            },
+            "freshness": {
+              "retrieved_at": "2026-10-25T04:00:00Z",
+              "basis": "Synthetic observation with unknown freshness duration."
+            }
+          },
+          {
+            "evidence_id": "ev_menu_c",
+            "source_id": "src_group",
+            "subject_place_ids": [
+              "branch_c"
+            ],
+            "statement": "The synthetic menu lists noodles for branch c.",
+            "locator": {
+              "kind": "document",
+              "section": "Branch c"
+            },
+            "freshness": {
+              "retrieved_at": "2026-10-25T04:00:00Z",
+              "basis": "Synthetic observation with unknown freshness duration."
+            }
+          },
+          {
+            "evidence_id": "ev_menu_d",
+            "source_id": "src_group",
+            "subject_place_ids": [
+              "branch_d"
+            ],
+            "statement": "The synthetic menu lists noodles for branch d.",
+            "locator": {
+              "kind": "document",
+              "section": "Branch d"
+            },
+            "freshness": {
+              "retrieved_at": "2026-10-25T04:00:00Z",
+              "basis": "Synthetic observation with unknown freshness duration."
+            }
+          },
+          {
+            "evidence_id": "ev_menu_e",
+            "source_id": "src_group",
+            "subject_place_ids": [
+              "branch_e"
+            ],
+            "statement": "The synthetic menu lists noodles for branch e.",
+            "locator": {
+              "kind": "document",
+              "section": "Branch e"
+            },
+            "freshness": {
+              "retrieved_at": "2026-10-25T04:00:00Z",
+              "basis": "Synthetic observation with unknown freshness duration."
+            }
+          },
+          {
+            "evidence_id": "ev_menu_f",
+            "source_id": "src_group",
+            "subject_place_ids": [
+              "branch_f"
+            ],
+            "statement": "The synthetic menu lists noodles for branch f.",
+            "locator": {
+              "kind": "document",
+              "section": "Branch f"
+            },
+            "freshness": {
+              "retrieved_at": "2026-10-25T04:00:00Z",
+              "basis": "Synthetic observation with unknown freshness duration."
+            }
+          },
+          {
+            "evidence_id": "ev_menu_g",
+            "source_id": "src_group",
+            "subject_place_ids": [
+              "branch_g"
+            ],
+            "statement": "The synthetic menu lists noodles for branch g.",
+            "locator": {
+              "kind": "document",
+              "section": "Branch g"
+            },
+            "freshness": {
+              "retrieved_at": "2026-10-25T04:00:00Z",
+              "basis": "Synthetic observation with unknown freshness duration."
+            }
+          },
+          {
+            "evidence_id": "ev_menu_h",
+            "source_id": "src_group",
+            "subject_place_ids": [
+              "branch_h"
+            ],
+            "statement": "The synthetic menu lists noodles for branch h.",
+            "locator": {
+              "kind": "document",
+              "section": "Branch h"
+            },
+            "freshness": {
+              "retrieved_at": "2026-10-25T04:00:00Z",
+              "basis": "Synthetic observation with unknown freshness duration."
+            }
+          },
+          {
+            "evidence_id": "ev_multi",
+            "source_id": "src_group",
+            "subject_place_ids": [
+              "branch_a",
+              "branch_b"
+            ],
+            "statement": "Both synthetic branches list noodles.",
+            "locator": {
+              "kind": "document",
+              "section": "Branch a"
+            },
+            "freshness": {
+              "retrieved_at": "2026-10-25T04:00:00Z",
+              "basis": "Synthetic observation with unknown freshness duration."
+            }
+          }
+        ],
+        "food_claims": [
+          {
+            "claim_id": "menu_a",
+            "status": "sourced",
+            "topic": "menu",
+            "statement": "The synthetic menu lists noodles for branch a.",
+            "subjects": [
+              {
+                "place_id": "branch_a",
+                "evidence_ids": [
+                  "ev_menu_a"
+                ]
+              }
+            ]
+          },
+          {
+            "claim_id": "menu_b",
+            "status": "sourced",
+            "topic": "menu",
+            "statement": "The synthetic menu lists noodles for branch b.",
+            "subjects": [
+              {
+                "place_id": "branch_b",
+                "evidence_ids": [
+                  "ev_menu_b"
+                ]
+              }
+            ]
+          },
+          {
+            "claim_id": "menu_c",
+            "status": "sourced",
+            "topic": "menu",
+            "statement": "The synthetic menu lists noodles for branch c.",
+            "subjects": [
+              {
+                "place_id": "branch_c",
+                "evidence_ids": [
+                  "ev_menu_c"
+                ]
+              }
+            ]
+          },
+          {
+            "claim_id": "menu_d",
+            "status": "sourced",
+            "topic": "menu",
+            "statement": "The synthetic menu lists noodles for branch d.",
+            "subjects": [
+              {
+                "place_id": "branch_d",
+                "evidence_ids": [
+                  "ev_menu_d"
+                ]
+              }
+            ]
+          },
+          {
+            "claim_id": "menu_e",
+            "status": "sourced",
+            "topic": "menu",
+            "statement": "The synthetic menu lists noodles for branch e.",
+            "subjects": [
+              {
+                "place_id": "branch_e",
+                "evidence_ids": [
+                  "ev_menu_e"
+                ]
+              }
+            ]
+          },
+          {
+            "claim_id": "menu_f",
+            "status": "sourced",
+            "topic": "menu",
+            "statement": "The synthetic menu lists noodles for branch f.",
+            "subjects": [
+              {
+                "place_id": "branch_f",
+                "evidence_ids": [
+                  "ev_menu_f"
+                ]
+              }
+            ]
+          },
+          {
+            "claim_id": "menu_g",
+            "status": "sourced",
+            "topic": "menu",
+            "statement": "The synthetic menu lists noodles for branch g.",
+            "subjects": [
+              {
+                "place_id": "branch_g",
+                "evidence_ids": [
+                  "ev_menu_g"
+                ]
+              }
+            ]
+          },
+          {
+            "claim_id": "menu_h",
+            "status": "sourced",
+            "topic": "menu",
+            "statement": "The synthetic menu lists noodles for branch h.",
+            "subjects": [
+              {
+                "place_id": "branch_h",
+                "evidence_ids": [
+                  "ev_menu_h"
+                ]
+              }
+            ]
+          },
+          {
+            "claim_id": "inferred_h",
+            "status": "inferred",
+            "topic": "food",
+            "statement": "Noodles are a suggested food option at synthetic branch h.",
+            "subjects": [
+              {
+                "place_id": "branch_h",
+                "evidence_ids": [
+                  "ev_menu_h"
+                ]
+              }
+            ],
+            "basis": "The branch-specific menu observation is the stated inference basis."
+          },
+          {
+            "claim_id": "price_a",
+            "status": "sourced",
+            "topic": "price",
+            "statement": "Synthetic price detail.",
+            "subjects": [
+              {
+                "place_id": "branch_a",
+                "evidence_ids": [
+                  "ev_menu_a"
+                ]
+              }
+            ]
+          },
+          {
+            "claim_id": "unknown_a",
+            "status": "unknown",
+            "topic": "food",
+            "subject_place_ids": [
+              "branch_a"
+            ],
+            "gap": "Current food availability is unconfirmed."
+          },
+          {
+            "claim_id": "shared_noodles",
+            "status": "sourced",
+            "topic": "food",
+            "statement": "Both synthetic branches list noodles.",
+            "subjects": [
+              {
+                "place_id": "branch_a",
+                "evidence_ids": [
+                  "ev_multi"
+                ]
+              },
+              {
+                "place_id": "branch_b",
+                "evidence_ids": [
+                  "ev_multi"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "versions": [
+    {
+      "version_id": "ver_all",
+      "research_snapshot_id": "snap_refined",
+      "lineage": {
+        "kind": "all_options",
+        "parent_version_id": "ver_refined"
+      },
+      "primaries": [
+        {
+          "place_id": "branch_a",
+          "why_to_go": "An illustrative researched option, not a real recommendation.",
+          "food_claim_ids": [
+            "menu_a"
+          ]
+        },
+        {
+          "place_id": "branch_b",
+          "why_to_go": "An illustrative researched option, not a real recommendation.",
+          "food_claim_ids": [
+            "menu_b"
+          ]
+        },
+        {
+          "place_id": "branch_c",
+          "why_to_go": "An illustrative researched option, not a real recommendation.",
+          "food_claim_ids": [
+            "menu_c"
+          ]
+        }
+      ],
+      "runners_up": [
+        {
+          "place_id": "branch_d",
+          "why_to_go": "An illustrative researched option, not a real recommendation.",
+          "food_claim_ids": [
+            "menu_d"
+          ]
+        },
+        {
+          "place_id": "branch_e",
+          "why_to_go": "An illustrative researched option, not a real recommendation.",
+          "food_claim_ids": [
+            "menu_e"
+          ]
+        },
+        {
+          "place_id": "branch_f",
+          "why_to_go": "An illustrative researched option, not a real recommendation.",
+          "food_claim_ids": [
+            "menu_f"
+          ]
+        },
+        {
+          "place_id": "branch_g",
+          "why_to_go": "An illustrative researched option, not a real recommendation.",
+          "food_claim_ids": [
+            "menu_g"
+          ]
+        }
+      ],
+      "shortfall_reason": null,
+      "food_choices": [
+        {
+          "choice_id": "noodles",
+          "version_id": "ver_all",
+          "label": "Noodles",
+          "supports": [
+            {
+              "place_id": "branch_h",
+              "food_claim_ids": [
+                "menu_h"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version_id": "ver_refined",
+      "research_snapshot_id": "snap_refined",
+      "lineage": {
+        "kind": "food_choice",
+        "parent_version_id": "ver_initial",
+        "choice": {
+          "version_id": "ver_initial",
+          "choice_id": "noodles"
+        }
+      },
+      "primaries": [
+        {
+          "place_id": "branch_a",
+          "why_to_go": "An illustrative researched option, not a real recommendation.",
+          "food_claim_ids": [
+            "menu_a"
+          ]
+        },
+        {
+          "place_id": "branch_b",
+          "why_to_go": "An illustrative researched option, not a real recommendation.",
+          "food_claim_ids": [
+            "menu_b"
+          ]
+        },
+        {
+          "place_id": "branch_c",
+          "why_to_go": "An illustrative researched option, not a real recommendation.",
+          "food_claim_ids": [
+            "menu_c"
+          ]
+        }
+      ],
+      "runners_up": [
+        {
+          "place_id": "branch_d",
+          "why_to_go": "An illustrative researched option, not a real recommendation.",
+          "food_claim_ids": [
+            "menu_d"
+          ]
+        },
+        {
+          "place_id": "branch_e",
+          "why_to_go": "An illustrative researched option, not a real recommendation.",
+          "food_claim_ids": [
+            "menu_e"
+          ]
+        },
+        {
+          "place_id": "branch_f",
+          "why_to_go": "An illustrative researched option, not a real recommendation.",
+          "food_claim_ids": [
+            "menu_f"
+          ]
+        },
+        {
+          "place_id": "branch_g",
+          "why_to_go": "An illustrative researched option, not a real recommendation.",
+          "food_claim_ids": [
+            "menu_g"
+          ]
+        }
+      ],
+      "shortfall_reason": null,
+      "food_choices": [
+        {
+          "choice_id": "noodles",
+          "version_id": "ver_refined",
+          "label": "Noodles",
+          "supports": [
+            {
+              "place_id": "branch_h",
+              "food_claim_ids": [
+                "menu_h"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version_id": "ver_initial",
+      "research_snapshot_id": "snap_initial",
+      "lineage": {
+        "kind": "initial"
+      },
+      "primaries": [
+        {
+          "place_id": "branch_a",
+          "why_to_go": "An illustrative researched option, not a real recommendation.",
+          "food_claim_ids": [
+            "menu_a"
+          ]
+        },
+        {
+          "place_id": "branch_b",
+          "why_to_go": "An illustrative researched option, not a real recommendation.",
+          "food_claim_ids": [
+            "menu_b"
+          ]
+        },
+        {
+          "place_id": "branch_c",
+          "why_to_go": "An illustrative researched option, not a real recommendation.",
+          "food_claim_ids": [
+            "menu_c"
+          ]
+        }
+      ],
+      "runners_up": [
+        {
+          "place_id": "branch_d",
+          "why_to_go": "An illustrative researched option, not a real recommendation.",
+          "food_claim_ids": [
+            "menu_d"
+          ]
+        },
+        {
+          "place_id": "branch_e",
+          "why_to_go": "An illustrative researched option, not a real recommendation.",
+          "food_claim_ids": [
+            "menu_e"
+          ]
+        },
+        {
+          "place_id": "branch_f",
+          "why_to_go": "An illustrative researched option, not a real recommendation.",
+          "food_claim_ids": [
+            "menu_f"
+          ]
+        },
+        {
+          "place_id": "branch_g",
+          "why_to_go": "An illustrative researched option, not a real recommendation.",
+          "food_claim_ids": [
+            "menu_g"
+          ]
+        }
+      ],
+      "shortfall_reason": null,
+      "food_choices": [
+        {
+          "choice_id": "noodles",
+          "version_id": "ver_initial",
+          "label": "Noodles",
+          "supports": [
+            {
+              "place_id": "branch_h",
+              "food_claim_ids": [
+                "menu_h"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -159,7 +159,7 @@ _RouteMetric = Annotated[float, Field(ge=0, allow_inf_nan=False)]
 class _Route(_Wire):
     time: _RouteMetric = Field(repr=False)
     distance: _RouteMetric = Field(repr=False)
-    distance_units: Literal["Meters"]
+    distance_units: Literal["meters"]
     datasource: _Datasource | None = Field(default=None, repr=False)
 
 

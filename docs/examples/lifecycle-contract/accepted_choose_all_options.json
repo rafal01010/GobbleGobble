@@ -1,0 +1,9 @@
+{
+  "search_id": "search_example",
+  "run_id": "run_example",
+  "command_id": "command_all",
+  "selection": {
+    "kind": "all_options",
+    "parent_version_id": "ver_initial"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "command": {
+    "disposition": "accepted",
+    "command_id": "command_start",
+    "run": {
+      "search_id": "search_example",
+      "run_id": "run_example",
+      "operation": "initial",
+      "attempt_id": null,
+      "state": {
+        "status": "queued"
+      },
+      "last_event_sequence": 0
+    }
+  }
+}

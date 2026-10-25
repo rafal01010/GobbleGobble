@@ -23,7 +23,7 @@ from app.providers.geoapify import (
 
 _KEY = "synthetic-route-key"
 _ORIGIN, _DESTINATION = Point(35.6909, 139.7003), Point(35.6812, 139.7671)
-_RECORD = {"time": 123.456, "distance": 890.125, "distance_units": "Meters"}
+_RECORD = {"time": 123.456, "distance": 890.125, "distance_units": "meters"}
 
 
 @pytest.fixture
@@ -128,7 +128,7 @@ async def test_route_wire_metrics_provenance_and_safe_accounting(
 async def test_empty_routes_and_provider_returned_zero_metrics(
     settings: Settings, available: bool
 ) -> None:
-    record = {"time": 0, "distance": 0, "distance_units": "Meters"}
+    record = {"time": 0, "distance": 0, "distance_units": "meters"}
     result = await client(
         attempt(settings), {"results": [record] if available else []}
     ).route(_ORIGIN, _DESTINATION, mode="walk")
@@ -163,7 +163,10 @@ async def test_empty_routes_and_provider_returned_zero_metrics(
             for value in (-1, True, "1", None, float("nan"), float("inf"))
         ),
         {"results": [{"time": 1, "distance": 2}]},
-        {"results": [_RECORD | {"distance_units": "Kilometers"}]},
+        *(
+            {"results": [_RECORD | {"distance_units": units}]}
+            for units in ("Meters", "kilometers", "miles", "feet", "", None)
+        ),
         {"results": [_RECORD | {"datasource": []}]},
     ],
 )
