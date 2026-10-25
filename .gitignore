@@ -3,6 +3,10 @@ IMPLEMENTATION_PLAN.md
 PSTACK*
 
 data/verification/
+data/runtime/
+*.sqlite3-journal
+*.sqlite3-wal
+*.sqlite3-shm
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

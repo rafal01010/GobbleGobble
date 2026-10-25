@@ -4,7 +4,7 @@ GG-002.02 adds local settings and credential preflight in `apps/backend/app/core
 
 ## Sources and precedence
 
-The default file is `apps/backend/.env`, resolved relative to the settings module rather than the working directory. Process environment values override file values. There are no default provider selections, model IDs, or timeout values. GG-002.06A adds optional independent review fields and the credential-free `load_review_settings` entry point. The initializer does not load settings.
+The default file is `apps/backend/.env`, resolved relative to the settings module rather than the working directory. Process environment values override file values. There are no default provider selections, model IDs, or timeout values. GG-005.01 adds an independent `load_database_settings` entry point with a default durable path. GG-002.06A adds optional independent review fields and the credential-free `load_review_settings` entry point. The initializer does not load settings.
 
 `load_settings(mode=..., env_file=...)` accepts a different dotenv path. A relative override is relative to the caller's working directory. `env_file=None` disables file loading but still reads the process environment. An absent file is allowed when the environment supplies the required configuration. Unknown dotenv fields and invalid or unreadable files produce configuration errors. Unrelated process environment variables do not become settings.
 
@@ -12,10 +12,11 @@ This uses the installed [Pydantic settings source behavior](https://docs.pydanti
 
 ## Variables
 
-The table describes general `load_settings` requirements unless a review-specific rule is stated. Review-only loading is described below. All names use the exact spelling below. `apps/backend/.env.example` contains the same inventory with commented, empty assignments. Copying the example selects no provider and supplies no credentials.
+The table describes general `load_settings` requirements unless a specialized rule is stated. Review-only and database-only loading are described below. All names use the exact spelling below. `apps/backend/.env.example` contains the same inventory with commented, empty assignments. Copying the example selects no provider and supplies no credentials.
 
 | Variable | Accepted input | Requirement |
 |---|---|---|
+| `GG_DATABASE_PATH` | Local filesystem path without colon syntax or NUL characters. Blank values, `:memory:`, and URIs are rejected. | Optional for database-only loading. Defaults to `<repository>/data/runtime/gobblegobble.sqlite3`. General and review settings ignore this field. |
 | `GG_LOCATION_PROVIDER` | `google_grounding_lite`, `google_geocoding`, or `geoapify` | Required in every mode. |
 | `GG_DISCOVERY_PROVIDER` | `google_grounding_lite`, `google_places`, or `geoapify` | Required in every mode. |
 | `GG_ROUTE_PROVIDER` | `google_grounding_lite`, `google_routes`, or `geoapify` | Required in every mode. |
@@ -110,3 +111,13 @@ GG-002.06A adds `ReviewSettings` and `load_review_settings(mode=..., env_file=..
 Anonymous reviews need no Google key, account, billing or cookies. Selecting `google_reviews` does not add a geographic credential requirement. General `load_settings` keeps its existing geography and OpenAI preflight. A review-only `AttemptCalls` accepts `ReviewSettings` and can execute only review calls. Shared attempts use the general settings plus the two review fields. The [review probe reference](GOOGLE_REVIEW_PROBES.md) records the client contract and prepared gate scenarios.
 
 This task does not change the local `.env`, provider selections or model IDs. Current local development models remain Luna by the recorded user choice. Loading configuration invokes no network or model operation. Behavioral configuration checks and live review access remain at GG-003.
+
+## Independent local database settings
+
+`load_database_settings(env_file=...)` returns a frozen `DatabaseSettings` with one `database_path: Path` field. It uses the same dotenv parsing, known-name admission, process precedence, and value-free `ConfigurationError` contract. It requires no mode, provider, model, timeout, or credential. Each loader projects admitted dotenv values to its own declared fields. Unknown dotenv names still fail for every loader.
+
+`GG_DATABASE_PATH` defaults to `<repository>/data/runtime/gobblegobble.sqlite3`. Relative database paths resolve against the repository root. Absolute paths remain absolute. The loader resolves the path without creating a directory or file. Empty or whitespace-only values, colon syntax including memory and URI names, and NUL characters produce `GG_DATABASE_PATH: invalid`. Opening a directory fails at the database boundary.
+
+The database loader ignores known provider fields even when they have invalid values. General and review-only loaders ignore the database field. Process environment overrides the dotenv database path. A configured database path does not change general live credential preflight.
+
+The [database reference](DATABASE.md) defines connections, transactions, the migration command, and its exit codes. Database settings loading and imports perform no database or network operations.

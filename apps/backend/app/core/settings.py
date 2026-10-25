@@ -31,6 +31,7 @@ ModelId = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 Seconds = Annotated[float, Field(gt=0, allow_inf_nan=False)]
 ConfigurationVariable = Literal[
     "configuration",
+    "GG_DATABASE_PATH",
     "GG_LOCATION_PROVIDER",
     "GG_DISCOVERY_PROVIDER",
     "GG_ROUTE_PROVIDER",
@@ -47,7 +48,9 @@ ConfigurationVariable = Literal[
 ]
 
 _BACKEND_ENV = Path(__file__).resolve().parents[2] / ".env"
+_REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
 _VARIABLES: dict[str, ConfigurationVariable] = {
+    "database_path": "GG_DATABASE_PATH",
     "location_provider": "GG_LOCATION_PROVIDER",
     "discovery_provider": "GG_DISCOVERY_PROVIDER",
     "route_provider": "GG_ROUTE_PROVIDER",
@@ -120,6 +123,25 @@ class ReviewSettings(BaseSettings):
     review_timeout_seconds: Seconds | None = None
 
 
+class DatabaseSettings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix="GG_", frozen=True, extra="forbid", hide_input_in_errors=True
+    )
+
+    database_path: Path = _REPOSITORY_ROOT / "data/runtime/gobblegobble.sqlite3"
+
+    @field_validator("database_path", mode="before")
+    @classmethod
+    def _local_database_path(cls, value: object) -> object:
+        if not isinstance(value, str | Path):
+            return value
+        text = str(value)
+        if not text.strip() or text == ":memory:" or ":" in text or "\x00" in text:
+            raise ValueError("expected a durable local file path")
+        path = Path(text)
+        return (path if path.is_absolute() else _REPOSITORY_ROOT / path).resolve()
+
+
 @dataclass(frozen=True)
 class ConfigurationIssue:
     variable: ConfigurationVariable
@@ -185,81 +207,77 @@ def _dotenv_source(
         raise ConfigurationError(
             (ConfigurationIssue("configuration", "invalid"),)
         ) from None
-    if settings_type is ReviewSettings:
-        source.env_vars = {
-            name: value
-            for name, value in source.env_vars.items()
-            if name in {"gg_mode", "gg_review_provider", "gg_review_timeout_seconds"}
-        }
+    prefix = settings_type.model_config.get("env_prefix", "")
+    selected_names = {
+        (
+            field.validation_alias
+            if isinstance(field.validation_alias, str)
+            else f"{prefix}{name}"
+        ).lower()
+        for name, field in settings_type.model_fields.items()
+    }
+    source.env_vars = {
+        name: value for name, value in source.env_vars.items() if name in selected_names
+    }
     return source
+
+
+def _load_settings[SettingsType: BaseSettings](
+    settings_type: type[SettingsType],
+    *,
+    env_file: Path | str | None,
+    mode: Mode | None = None,
+) -> SettingsType:
+    try:
+        values = (
+            _dotenv_source(env_file, settings_type)()
+            | EnvSettingsSource(settings_type)()
+        )
+        if mode is not None:
+            values["mode"] = mode
+        return settings_type(**values)
+    except ValidationError as error:
+        issues = tuple(
+            dict.fromkeys(
+                ConfigurationIssue(
+                    _VARIABLES.get(str(item["loc"][0]), "configuration")
+                    if item["loc"]
+                    else "configuration",
+                    "missing" if item["type"] == "missing" else "invalid",
+                )
+                for item in error.errors(
+                    include_url=False, include_context=False, include_input=False
+                )
+            )
+        )
+        raise ConfigurationError(issues) from None
+    except OSError, UnicodeError:
+        raise ConfigurationError(
+            (ConfigurationIssue("configuration", "unreadable"),)
+        ) from None
+    except SettingsError:
+        raise ConfigurationError(
+            (ConfigurationIssue("configuration", "invalid"),)
+        ) from None
+
+
+def load_database_settings(
+    *, env_file: Path | str | None = _BACKEND_ENV
+) -> DatabaseSettings:
+    return _load_settings(DatabaseSettings, env_file=env_file)
 
 
 def load_review_settings(
     *, mode: Mode, env_file: Path | str | None = _BACKEND_ENV
 ) -> ReviewSettings:
     """Load reviews without selecting geography, models, keys or billing."""
-    try:
-        values = (
-            _dotenv_source(env_file, ReviewSettings)()
-            | EnvSettingsSource(ReviewSettings)()
-        )
-        values["mode"] = mode
-        return ReviewSettings(**values)
-    except ValidationError as error:
-        issues = tuple(
-            dict.fromkeys(
-                ConfigurationIssue(
-                    _VARIABLES.get(str(item["loc"][0]), "configuration")
-                    if item["loc"]
-                    else "configuration",
-                    "missing" if item["type"] == "missing" else "invalid",
-                )
-                for item in error.errors(
-                    include_url=False, include_context=False, include_input=False
-                )
-            )
-        )
-        raise ConfigurationError(issues) from None
-    except OSError, UnicodeError:
-        raise ConfigurationError(
-            (ConfigurationIssue("configuration", "unreadable"),)
-        ) from None
-    except SettingsError:
-        raise ConfigurationError(
-            (ConfigurationIssue("configuration", "invalid"),)
-        ) from None
+    return _load_settings(ReviewSettings, mode=mode, env_file=env_file)
 
 
 def load_settings(
     *, mode: Mode, env_file: Path | str | None = _BACKEND_ENV
 ) -> Settings:
-    try:
-        values = _dotenv_source(env_file)() | EnvSettingsSource(Settings)()
-        values["mode"] = mode
-        settings = Settings(**values)
-    except ValidationError as error:
-        issues = tuple(
-            dict.fromkeys(
-                ConfigurationIssue(
-                    _VARIABLES.get(str(item["loc"][0]), "configuration")
-                    if item["loc"]
-                    else "configuration",
-                    "missing" if item["type"] == "missing" else "invalid",
-                )
-                for item in error.errors(
-                    include_url=False, include_context=False, include_input=False
-                )
-            )
-        )
-        raise ConfigurationError(issues) from None
-    except OSError, UnicodeError:
-        raise ConfigurationError(
-            (ConfigurationIssue("configuration", "unreadable"),)
-        ) from None
-    except SettingsError:
-        raise ConfigurationError(
-            (ConfigurationIssue("configuration", "invalid"),)
-        ) from None
+    settings = _load_settings(Settings, mode=mode, env_file=env_file)
 
     if settings.mode == "live":
         missing_credentials = []

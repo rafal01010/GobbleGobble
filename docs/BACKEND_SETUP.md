@@ -62,7 +62,7 @@ Edit dependencies through uv from `apps/backend` and review both `pyproject.toml
 
 The runtime dependencies cover HTTP requests, the OpenAI client and Agents SDK, typed data and settings, and the planned FastAPI server. The development group contains pytest, pytest-asyncio, Ruff, and mypy. The [official Agents SDK quickstart](https://developers.openai.com/api/docs/guides/agents/quickstart?lang=python) identifies `openai-agents` as the Python SDK package.
 
-The `app` package contains local settings, the bounded call layer, the prepared [location/discovery](GEOGRAPHY_PROBES.md) and [walking/driving route](ROUTE_PROBES.md) client, the [OpenAI web-research client](WEB_RESEARCH_PROBES.md), the [anonymous Google review client](GOOGLE_REVIEW_PROBES.md), and the [SDK owner/research probe](SDK_PROBE.md). None runs a provider during import or environment setup. The geographic and review clients use the installed HTTPX dependency. Earlier bounded experiments demonstrated Geoapify location/discovery, Sol-based OpenAI access and anonymous Google review retrieval. Full provider selection, route access and current Luna-model verification remain GG-003. Models, credentials and source controls remain governed by the [integration findings](INTEGRATIONS.md) and later tasks. Installing the SDK does not configure its tracing or authorize live research. Database libraries can be selected with the persistence implementation.
+The `app` package contains local settings, the bounded call layer, the prepared [location/discovery](GEOGRAPHY_PROBES.md) and [walking/driving route](ROUTE_PROBES.md) client, the [OpenAI web-research client](WEB_RESEARCH_PROBES.md), the [anonymous Google review client](GOOGLE_REVIEW_PROBES.md), and the [SDK owner/research probe](SDK_PROBE.md). None runs a provider during import or environment setup. The geographic and review clients use the installed HTTPX dependency. Earlier bounded experiments demonstrated Geoapify location/discovery, Sol-based OpenAI access and anonymous Google review retrieval. Full provider selection, route access and current Luna-model verification remain GG-003. Models, credentials and source controls remain governed by the [integration findings](INTEGRATIONS.md) and later tasks. Installing the SDK does not configure its tracing or authorize live research. GG-005.01 uses Python's standard-library `sqlite3` for the [local database foundation](DATABASE.md), with no additional dependency.
 
 ## Configure local settings
 
@@ -104,3 +104,15 @@ GG-002.06A adds two independent settings to the example inventory. Set `GG_REVIE
 Use `load_review_settings` for review-only preflight without geography or model credentials. Use general `load_settings` when the attempt shares review, geography and model calls. Neither loader contacts a service. `GoogleReviewClient.preflight()` reports a fixed missing-selection or missing-timeout error before it can transmit. See the [review probe reference](GOOGLE_REVIEW_PROBES.md) for the interface, bounds and retention decisions.
 
 GG-002.08 left the actual local `.env` unchanged. At GG-003, the missing review fields were explicitly set to `google_reviews` and 30 seconds. The GG-002.08 command accepts typed JSON input, with independent review-only scenarios and explicit live opt-in. After initialization, run `scripts/local/probe-live.sh --help` from the repository root. See the [command reference](LIVE_PROBES.md) for scenario inputs, configuration requirements, request bounds, and exit codes. GG-003 owns behavioral and live verification.
+
+## Prepare local database storage
+
+After initializing the backend, run the explicit migration command from the repository root:
+
+```sh
+scripts/local/migrate-db.sh
+```
+
+The command loads database settings without provider credentials or model configuration. `GG_DATABASE_PATH` overrides the default repository-local `data/runtime/gobblegobble.sqlite3`. Relative paths resolve against the repository root. See the [database reference](DATABASE.md) for transaction boundaries, migration history, prerequisites and exit behavior. Initialization and imports do not migrate storage automatically.
+
+GG-005.01 implements this command. Empty-database migration, schema inspection and broader persistence verification remain at GG-007. Ownership, run admission, worker leases and events remain their later implementation tasks.
