@@ -1,0 +1,211 @@
+:root {
+  color-scheme: light;
+  --color-parchment: #f7f7f4;
+  --color-bone: #f2f1ed;
+  --color-stone: #cdcdc9;
+  --color-ink: #26251e;
+  --color-ember: #f54e00;
+  --surface-canvas: var(--color-parchment);
+  --surface-panel: var(--color-bone);
+  --text-primary: var(--color-ink);
+  --border-color: var(--color-stone);
+  --action-background: var(--color-ink);
+  --action-text: var(--color-parchment);
+  --font-ui: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --radius-control: 4px;
+  --radius-panel: 4px;
+  --page-padding: clamp(20px, 4vw, 40px);
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-feature-settings: 'ss08', 'ss09', 'tnum';
+  font-synthesis: none;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background: var(--surface-canvas);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  color: var(--text-primary);
+  background: var(--surface-canvas);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+  text-underline-offset: var(--space-1);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: var(--space-1);
+}
+
+h1,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-weight: 400;
+  text-wrap: balance;
+}
+
+.app-shell {
+  display: flex;
+  min-height: 100svh;
+  flex-direction: column;
+}
+
+.shell-frame {
+  width: min(calc(100% - var(--page-padding) * 2), 1120px);
+  margin-inline: auto;
+}
+
+.shell-header {
+  display: flex;
+  min-height: 88px;
+  align-items: center;
+  gap: var(--space-5);
+  padding-block: var(--space-6);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.wordmark {
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+}
+
+.shell-main {
+  display: flex;
+  width: min(calc(100% - var(--page-padding) * 2), 720px);
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  margin-inline: auto;
+  padding-block: var(--space-20);
+}
+
+.intro {
+  text-align: center;
+}
+
+.intro h1 {
+  max-width: 14ch;
+  margin-inline: auto;
+  font-size: clamp(40px, 6vw, 56px);
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+}
+
+.intro-copy {
+  max-width: 40ch;
+  margin-inline: auto;
+  margin-top: var(--space-6);
+  font-size: 18px;
+  line-height: 1.5;
+}
+
+.preview-panel {
+  width: min(100%, 480px);
+  margin-inline: auto;
+  margin-top: var(--space-6);
+  padding: var(--space-6);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-panel);
+  background: var(--surface-panel);
+  text-align: left;
+}
+
+.preview-information {
+  text-align: center;
+}
+
+.preview-panel p {
+  max-width: 48ch;
+}
+
+.primary-action {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  margin-top: var(--space-6);
+  padding: var(--space-3) var(--space-5);
+  border: 1px solid var(--action-background);
+  border-radius: var(--radius-control);
+  background: var(--action-background);
+  color: var(--action-text);
+  font-size: 14px;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  list-style: none;
+}
+
+.primary-action::-webkit-details-marker {
+  display: none;
+}
+
+.primary-action:hover {
+  text-decoration: underline;
+}
+
+.skip-link {
+  position: absolute;
+  z-index: 1;
+  top: var(--space-4);
+  left: var(--page-padding);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-control);
+  background: var(--surface-canvas);
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+@media (max-width: 600px) {
+  .shell-header {
+    min-height: 80px;
+    gap: var(--space-3);
+  }
+
+  .shell-main {
+    padding-block: var(--space-12);
+  }
+
+  .preview-panel {
+    padding: var(--space-6);
+  }
+
+  .primary-action {
+    width: 100%;
+  }
+}

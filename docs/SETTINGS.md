@@ -16,6 +16,8 @@ The table describes general `load_settings` requirements unless a specialized ru
 
 | Variable | Accepted input | Requirement |
 |---|---|---|
+| `GG_TRUSTED_FRONTEND_ORIGINS` | JSON array of unique exact HTTP(S) origins. No wildcard, credentials, path, query, fragment, trailing slash, default port or blank list. | API-only. Defaults to `["http://localhost:5173","http://127.0.0.1:5173"]`. |
+| `GG_SESSION_COOKIE_SECURE` | Boolean | API-only. Defaults to false. HTTPS always sets Secure; true also forces it on HTTP. |
 | `GG_DATABASE_PATH` | Local filesystem path without colon syntax or NUL characters. Blank values, `:memory:`, and URIs are rejected. | Optional for database-only loading. Defaults to `<repository>/data/runtime/gobblegobble.sqlite3`. General and review settings ignore this field. |
 | `GG_LOCATION_PROVIDER` | `google_grounding_lite`, `google_geocoding`, or `geoapify` | Required in every mode. |
 | `GG_DISCOVERY_PROVIDER` | `google_grounding_lite`, `google_places`, or `geoapify` | Required in every mode. |
@@ -121,3 +123,14 @@ This task does not change the local `.env`, provider selections or model IDs. Cu
 The database loader ignores known provider fields even when they have invalid values. General and review-only loaders ignore the database field. Process environment overrides the dotenv database path. A configured database path does not change general live credential preflight.
 
 The [database reference](DATABASE.md) defines connections, transactions, the migration command, and its exit codes. Database settings loading and imports perform no database or network operations.
+
+
+## Independent API settings
+
+`load_api_settings(env_file=...)` returns frozen `ApiSettings` with `trusted_frontend_origins` and `session_cookie_secure`. It shares the dotenv registry, process precedence and value-free `ConfigurationError` behavior. It requires no mode, provider, credential, model or timeout. Other loaders ignore these known API variables, while unknown dotenv names still fail. The actual local `.env` is unchanged by GG-005.06.
+
+Origins use canonical lowercase HTTP(S) scheme and host, with an optional nondefault port. They must be unique concrete origins without user information, paths, query, fragment, wildcard, whitespace or trailing slash. Exact comparison does not normalize incoming headers. Example configuration is `GG_TRUSTED_FRONTEND_ORIGINS=["https://example.test"]`. Invalid fields report `GG_TRUSTED_FRONTEND_ORIGINS: invalid` or `GG_SESSION_COOKIE_SECURE: invalid` without their values.
+
+`session_cookie_secure=false` permits local HTTP development. HTTPS requests still receive Secure cookies. Setting it to true forces Secure even for HTTP requests, where browsers may withhold the cookie. It does not enable TLS or configure trusted proxy headers. Cookie name, path and SameSite policy are fixed in [the API contract](API.md#implemented-http-operations).
+
+`create_app` accepts explicit API and database settings without calling loaders. Schema export supplies inert model defaults without evaluating settings environment sources. Runtime startup uses `create_app_from_environment`, which calls only the API and database loaders. Neither startup path migrates or opens storage. Readiness performs the existing-schema check when requested. HTTP and database verification remain GG-007.

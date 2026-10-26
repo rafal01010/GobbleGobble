@@ -5,6 +5,7 @@ from uuid import uuid4
 
 from pydantic import ValidationError
 
+from app.db.events import _append_event
 from app.db.ownership import create_search, resolve_session
 from app.schemas.lifecycle import QueuedState, RunSnapshot
 from app.schemas.operations import (
@@ -104,12 +105,13 @@ def admit_start(
         operation="initial",
         attempt_id=None,
         state=QueuedState(),
-        last_event_sequence=0,
+        last_event_sequence=1,
     )
     connection.execute(
         "INSERT INTO runs (run_id, search_id, snapshot_json) VALUES (?, ?, ?)",
         (snapshot.run_id, snapshot.search_id, snapshot.model_dump_json()),
     ).close()
+    _append_event(connection, snapshot)
     connection.execute(
         "INSERT INTO run_commands "
         "(owner_session_id, command_id, command_kind, canonical_payload_json, "
@@ -126,3 +128,25 @@ def admit_start(
     return CommandResponse(
         command=AcceptedCommand(command_id=command.command_id, run=snapshot)
     )
+
+
+class RunNotFound(Exception):
+    def __init__(self) -> None:
+        super().__init__("not_found")
+
+
+def read_snapshot(
+    connection: sqlite3.Connection, *, search_id: str, run_id: str
+) -> RunSnapshot:
+    """Read a paired snapshot after the caller authorizes the search."""
+    cursor = connection.execute(
+        "SELECT snapshot_json FROM runs WHERE search_id = ? AND run_id = ?",
+        (search_id, run_id),
+    )
+    try:
+        row = cursor.fetchone()
+    finally:
+        cursor.close()
+    if row is None:
+        raise RunNotFound()
+    return _decode_snapshot(row["snapshot_json"], search_id, run_id)

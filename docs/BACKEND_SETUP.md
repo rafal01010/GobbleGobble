@@ -60,7 +60,7 @@ The checks run the full offline test suite, Ruff lint and format checks, mypy ov
 
 Edit dependencies through uv from `apps/backend` and review both `pyproject.toml` and `uv.lock`. Keep the lockfile in version control. Routine setup uses the lock rather than selecting newer releases. [uv's locking and syncing documentation](https://docs.astral.sh/uv/concepts/projects/sync/) describes locked setup and deliberate upgrades.
 
-The runtime dependencies cover HTTP requests, the OpenAI client and Agents SDK, typed data and settings, and the planned FastAPI server. The development group contains pytest, pytest-asyncio, Ruff, and mypy. The [official Agents SDK quickstart](https://developers.openai.com/api/docs/guides/agents/quickstart?lang=python) identifies `openai-agents` as the Python SDK package.
+The runtime dependencies cover HTTP requests, the OpenAI client and Agents SDK, typed data and settings, and the FastAPI server. The development group contains pytest, pytest-asyncio, Ruff, and mypy. The [official Agents SDK quickstart](https://developers.openai.com/api/docs/guides/agents/quickstart?lang=python) identifies `openai-agents` as the Python SDK package.
 
 The `app` package contains local settings, the bounded call layer, the prepared [location/discovery](GEOGRAPHY_PROBES.md) and [walking/driving route](ROUTE_PROBES.md) client, the [OpenAI web-research client](WEB_RESEARCH_PROBES.md), the [anonymous Google review client](GOOGLE_REVIEW_PROBES.md), and the [SDK owner/research probe](SDK_PROBE.md). None runs a provider during import or environment setup. The geographic and review clients use the installed HTTPX dependency. Earlier bounded experiments demonstrated Geoapify location/discovery, Sol-based OpenAI access and anonymous Google review retrieval. Full provider selection, route access and current Luna-model verification remain GG-003. Models, credentials and source controls remain governed by the [integration findings](INTEGRATIONS.md) and later tasks. Installing the SDK does not configure its tracing or authorize live research. GG-005.01 uses Python's standard-library `sqlite3` for the [local database foundation](DATABASE.md), with no additional dependency.
 
@@ -115,4 +115,23 @@ scripts/local/migrate-db.sh
 
 The command loads database settings without provider credentials or model configuration. `GG_DATABASE_PATH` overrides the default repository-local `data/runtime/gobblegobble.sqlite3`. Relative paths resolve against the repository root. See the [database reference](DATABASE.md) for transaction boundaries, migration history, prerequisites and exit behavior. Initialization and imports do not migrate storage automatically.
 
-GG-005.01 implements this command. Empty-database migration, schema inspection and broader persistence verification remain at GG-007. Ownership, run admission, worker leases and events remain their later implementation tasks.
+GG-005.01 implements this command. Empty-database migration, schema inspection and broader persistence verification remain at GG-007. Ownership, run admission, worker leases and event repositories are implemented. HTTP and persistence verification remain GG-007.
+
+
+## Run the admission API
+
+After explicit database migration, run this from `apps/backend`:
+
+```sh
+.venv/bin/uvicorn app.api.application:create_app_from_environment --factory --host 127.0.0.1 --port 8000
+```
+
+The factory requires only [API and database settings](SETTINGS.md#independent-api-settings). It does not load provider credentials, invoke research, migrate storage or start a worker. `GET /ready` requires an existing database with current migration history and returns `{"status":"ready"}` on success or a fixed 503 envelope on failure. Importing or constructing the app does not open storage.
+
+The default frontend origins are `http://localhost:5173` and `http://127.0.0.1:5173`. Use a matching Origin for session bootstrap and start. Complete `POST /api/session` before concurrent authenticated work, then retain its cookie. See [HTTP operations and examples](API.md#implemented-http-operations). Readiness, session, admission, status and [live SSE](RUN_EVENTS.md) routes are implemented. HTTP, cookies, ownership, rollback, replay/follow and database behavior await GG-007 verification. The [controlled worker](CONTROLLED_WORKER.md) can explicitly target an admitted run. Real research integration and lifecycle scripts remain later tasks.
+
+## Run a controlled worker
+
+From `apps/backend`, inspect `.venv/bin/python -m app.worker diagnostic --help`. After explicit migration and HTTP admission, run `.venv/bin/python -m app.worker diagnostic --run-id RUN_ID` with the returned run ID. The command loads only database settings, advances one deliberately selected diagnostic run and performs no research calls. Its [command contract](CONTROLLED_WORKER.md) records flags, exit behavior, state sequence and GG-007 verification. This is implemented infrastructure, not a verified worker run or production research integration.
+
+The separate [frontend setup guide](FRONTEND_SETUP.md) records the SvelteKit package and frontend-only commands. Its current static page needs no backend process or provider credentials. Full-stack lifecycle commands remain GG-006.06 and GG-006.07 work.

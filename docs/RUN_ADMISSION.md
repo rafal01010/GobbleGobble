@@ -1,6 +1,6 @@
 # Queued run admission
 
-GG-005.03 implements `admit_start` in [runs.py](../apps/backend/app/db/runs.py). A repeated start command has the same search and run identities. Implementation is complete, awaiting Section B verification at GG-007. GG-005.04 adds [worker claim and lease repositories](WORKER_LEASES.md). No HTTP route or worker process exists yet.
+GG-005.03 implements `admit_start` in [runs.py](../apps/backend/app/db/runs.py). A repeated start command has the same search and run identities. Implementation is complete, awaiting Section B verification at GG-007. GG-005.04 adds [worker claim and lease repositories](WORKER_LEASES.md). GG-005.06 adds the HTTP admission and status routes. GG-005.08 adds [targeted diagnostic execution](CONTROLLED_WORKER.md) for an explicitly selected admitted run. Production research execution remains later work.
 
 ## Callable contract
 
@@ -23,7 +23,7 @@ Let admission exceptions escape the transaction block. Catching an error inside 
 
 ## Admission and replay
 
-The operation looks up the authenticated owner and command ID before generating a search or run. A new command creates one search ownership row, one run, and one command record in the same transaction. Its `AcceptedCommand` contains an initial queued `RunSnapshot` with null `attempt_id` and `last_event_sequence = 0`. No attempt or event is created.
+The operation looks up the authenticated owner and command ID before generating a search or run. A new command creates one search ownership row, one run, one queued event, and one command record in the same transaction. Since GG-005.05, its `AcceptedCommand` contains an initial queued `RunSnapshot` with null `attempt_id` and `last_event_sequence = 1`. The matching queued event has sequence 1 and database time. No attempt is created. Existing cursor-zero snapshots remain unchanged until a new transition.
 
 An equal normalized request returns `ReplayedCommand` with the same identities and the current persisted snapshot. It does not return a saved queued acknowledgment after progress. A worker may advance the run after commit and before the first response arrives. The accepted response describes the admission checkpoint.
 
@@ -60,7 +60,7 @@ The default database is under ignored `data/runtime/`. Custom paths retain the o
 
 ## Expected observations and deferred verification
 
-At GG-007, a first start should add exactly one search, run, and command row. An identical start should replay with no new rows. A conflicting start should return `command_conflict` with no committed writes. Another owner using the same ID should get independent identities. Replay after progress should return the updated validated snapshot.
+At GG-007, a first start should add exactly one search, run, queued event, and command row. An identical start should replay with no new rows. A conflicting start should return `command_conflict` with no committed writes. Another owner using the same ID should get independent identities. Replay after progress should return the updated validated snapshot.
 
 GG-007 must execute migration 3 against empty and earlier-version databases, inspect foreign keys and uniqueness, and prove identical, conflicting, concurrent, rollback, lost-response, restart, cross-owner, and corrupt-snapshot behavior. No SQL, migrations, database opens, HTTP checks, provider calls, model calls, or broad tests ran for this child.
 
@@ -70,4 +70,13 @@ The task-local checker covers pure canonicalization, malformed credentials and t
 apps/backend/.venv/bin/python data/verification/GG-005.03/attempt-01/sanity.py
 ```
 
-Worker claims and fenced running-stage changes are implemented in GG-005.04. Replay uses the shared validated snapshot decoder and returns the persisted current attempt and stage. Events, read or watch repositories, refinement, retry, cancel, and actual HTTP credential transport remain later tasks.
+Worker claims and fenced running-stage changes are implemented in GG-005.04. Replay uses the shared validated snapshot decoder and returns the persisted current attempt and stage. GG-005.05 adds [atomic checkpoints and trusted event and work reads](RUN_CHECKPOINTS.md). GG-005.06 adds HTTP credential transport and public status reads. Watch, refinement, retry and cancel remain later tasks.
+
+
+## HTTP admission and paired status reads
+
+GG-005.06 exposes `POST /api/runs` as HTTP 202 with the existing `CommandResponse` for both accepted and replayed input. A first command returns queued state, null attempt and sequence 1. Replay returns the current persisted snapshot, which can have advanced. The typed JSON boundary preserves aware datetime strings and provider-reference arrays through strict JSON-mode validation. Boolean minutes, extra fields and nonfinite numbers remain invalid. No model configuration is weakened.
+
+The cookie must already exist from explicit `POST /api/session` bootstrap. Invalid credentials receive 401 without issuance. The mutation Origin guard executes before body parsing. The handler opens, admits, commits and closes in one synchronous invocation before response delivery. It performs no provider, model or worker calls.
+
+`GET /api/searches/{search_id}/runs/{run_id}` authorizes the search first, then uses the focused `read_snapshot` helper with both IDs. Unknown or foreign searches and mismatched runs share a fixed 404, including for searches owned by the same browser. Stored JSON or identity inconsistency remains an operational error. The response wraps the snapshot without inventing recommendation data. [The API reference](API.md#expected-request-and-response-examples) gives literal requests, success payloads and safe errors. HTTP behavior, timing, persistence and isolation remain GG-007 verification.

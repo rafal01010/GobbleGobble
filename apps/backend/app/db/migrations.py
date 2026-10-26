@@ -120,6 +120,61 @@ MIGRATIONS: tuple[Migration, ...] = (
             ),
         ),
     ),
+    Migration(
+        version=5,
+        name="create_run_events_and_committed_work",
+        statements=(
+            (
+                "CREATE TABLE run_events ("
+                "run_id TEXT NOT NULL REFERENCES runs(run_id), "
+                "sequence INTEGER NOT NULL "
+                "CHECK(typeof(sequence) = 'integer' AND sequence > 0), "
+                "attempt_id TEXT, event_json TEXT NOT NULL, "
+                "PRIMARY KEY(run_id, sequence), "
+                "FOREIGN KEY(run_id, attempt_id) REFERENCES run_attempts(run_id, attempt_id))"
+            ),
+            (
+                "CREATE TABLE run_contributions ("
+                "contribution_id TEXT PRIMARY KEY NOT NULL, "
+                "run_id TEXT NOT NULL REFERENCES runs(run_id), "
+                "origin_attempt_id TEXT NOT NULL, "
+                "accepted_sequence INTEGER NOT NULL "
+                "CHECK(typeof(accepted_sequence) = 'integer' AND accepted_sequence > 0), "
+                "capability TEXT NOT NULL CHECK(capability IN "
+                "('location','discovery','route','reviews','web_research','model')), "
+                "outcome TEXT NOT NULL CHECK(outcome IN ('completed','unavailable','stopped')), "
+                "UNIQUE(run_id, contribution_id), "
+                "FOREIGN KEY(run_id, origin_attempt_id) REFERENCES run_attempts(run_id, attempt_id), "
+                "FOREIGN KEY(run_id, accepted_sequence) REFERENCES run_events(run_id, sequence))"
+            ),
+            (
+                "CREATE TABLE run_receipts ("
+                "local_request_id TEXT PRIMARY KEY NOT NULL, "
+                "run_id TEXT NOT NULL REFERENCES runs(run_id), "
+                "origin_attempt_id TEXT NOT NULL, "
+                "accepted_sequence INTEGER NOT NULL "
+                "CHECK(typeof(accepted_sequence) = 'integer' AND accepted_sequence > 0), "
+                "safe_record_json TEXT NOT NULL, UNIQUE(run_id, local_request_id), "
+                "FOREIGN KEY(run_id, origin_attempt_id) REFERENCES run_attempts(run_id, attempt_id), "
+                "FOREIGN KEY(run_id, accepted_sequence) REFERENCES run_events(run_id, sequence))"
+            ),
+            (
+                "CREATE TABLE contribution_receipts ("
+                "run_id TEXT NOT NULL, contribution_id TEXT NOT NULL, local_request_id TEXT NOT NULL, "
+                "PRIMARY KEY(run_id, contribution_id, local_request_id), "
+                "FOREIGN KEY(run_id, contribution_id) REFERENCES run_contributions(run_id, contribution_id), "
+                "FOREIGN KEY(run_id, local_request_id) REFERENCES run_receipts(run_id, local_request_id))"
+            ),
+            (
+                "CREATE INDEX run_contributions_acceptance_idx "
+                "ON run_contributions(run_id, accepted_sequence, contribution_id)"
+            ),
+            (
+                "CREATE INDEX run_receipts_acceptance_idx "
+                "ON run_receipts(run_id, accepted_sequence, local_request_id)"
+            ),
+        ),
+    ),
 )
 
 
@@ -189,3 +244,9 @@ def migrate(settings: DatabaseSettings) -> tuple[int, ...]:
                 (migration.version, migration.name, migration.checksum),
             ).close()
     return tuple(migration.version for migration in pending)
+
+
+def require_current_schema(connection: sqlite3.Connection) -> None:
+    """Check durable history without creating or migrating storage."""
+    if _applied_count(connection) != len(MIGRATIONS):
+        raise MigrationError("schema_not_current")

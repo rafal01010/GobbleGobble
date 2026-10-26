@@ -2,10 +2,12 @@ from dataclasses import dataclass
 from io import StringIO
 from pathlib import Path
 from typing import Annotated, Literal
+from urllib.parse import urlsplit
 
 from dotenv import dotenv_values
 from dotenv.parser import parse_stream
 from pydantic import (
+    AnyHttpUrl,
     Field,
     SecretStr,
     StringConstraints,
@@ -32,6 +34,8 @@ Seconds = Annotated[float, Field(gt=0, allow_inf_nan=False)]
 ConfigurationVariable = Literal[
     "configuration",
     "GG_DATABASE_PATH",
+    "GG_TRUSTED_FRONTEND_ORIGINS",
+    "GG_SESSION_COOKIE_SECURE",
     "GG_LOCATION_PROVIDER",
     "GG_DISCOVERY_PROVIDER",
     "GG_ROUTE_PROVIDER",
@@ -51,6 +55,8 @@ _BACKEND_ENV = Path(__file__).resolve().parents[2] / ".env"
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
 _VARIABLES: dict[str, ConfigurationVariable] = {
     "database_path": "GG_DATABASE_PATH",
+    "trusted_frontend_origins": "GG_TRUSTED_FRONTEND_ORIGINS",
+    "session_cookie_secure": "GG_SESSION_COOKIE_SECURE",
     "location_provider": "GG_LOCATION_PROVIDER",
     "discovery_provider": "GG_DISCOVERY_PROVIDER",
     "route_provider": "GG_ROUTE_PROVIDER",
@@ -140,6 +146,53 @@ class DatabaseSettings(BaseSettings):
             raise ValueError("expected a durable local file path")
         path = Path(text)
         return (path if path.is_absolute() else _REPOSITORY_ROOT / path).resolve()
+
+
+class ApiSettings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix="GG_", frozen=True, extra="forbid", hide_input_in_errors=True
+    )
+
+    trusted_frontend_origins: tuple[str, ...] = (
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    )
+    session_cookie_secure: bool = False
+
+    @field_validator("trusted_frontend_origins")
+    @classmethod
+    def _exact_origins(cls, values: tuple[str, ...]) -> tuple[str, ...]:
+        if not values or len(set(values)) != len(values):
+            raise ValueError("expected unique concrete origins")
+        for value in values:
+            try:
+                parsed = urlsplit(value)
+                host = parsed.hostname
+                port = parsed.port
+                host_part = f"[{host}]" if host and ":" in host else host
+                canonical = f"{parsed.scheme}://{host_part}"
+                if port is not None:
+                    canonical += f":{port}"
+                valid = (
+                    value.isascii()
+                    and str(AnyHttpUrl(value)).removesuffix("/") == value
+                    and not any(char.isspace() for char in value)
+                    and "*" not in value
+                    and parsed.scheme in ("http", "https")
+                    and bool(host)
+                    and parsed.username is None
+                    and parsed.password is None
+                    and not parsed.path
+                    and not parsed.query
+                    and not parsed.fragment
+                    and value == canonical
+                    and port not in (0, 80 if parsed.scheme == "http" else 443)
+                )
+            except ValueError:
+                valid = False
+            if not valid:
+                raise ValueError("expected an exact HTTP or HTTPS origin")
+        return values
 
 
 @dataclass(frozen=True)
@@ -265,6 +318,10 @@ def load_database_settings(
     *, env_file: Path | str | None = _BACKEND_ENV
 ) -> DatabaseSettings:
     return _load_settings(DatabaseSettings, env_file=env_file)
+
+
+def load_api_settings(*, env_file: Path | str | None = _BACKEND_ENV) -> ApiSettings:
+    return _load_settings(ApiSettings, env_file=env_file)
 
 
 def load_review_settings(

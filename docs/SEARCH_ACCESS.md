@@ -1,6 +1,6 @@
 # Anonymous search access
 
-GG-005.02 implements durable anonymous session identity and search authorization in [ownership.py](../apps/backend/app/db/ownership.py). It is implemented, awaiting Section B verification at GG-007. GG-005.03 adds [queued admission and command replay](RUN_ADMISSION.md) in `app/db/runs.py`. HTTP transport and public run-read or watch operations remain later work.
+GG-005.02 implements durable anonymous session identity and search authorization in [ownership.py](../apps/backend/app/db/ownership.py). It is implemented, awaiting Section B verification at GG-007. GG-005.03 adds [queued admission and command replay](RUN_ADMISSION.md) in `app/db/runs.py`. GG-005.06 adds [HTTP bootstrap, admission and paired status reads](API.md#implemented-http-operations). GG-005.07 adds [authorized replay and live SSE](RUN_EVENTS.md). HTTP and persistence behavior await GG-007.
 
 ## Ownership model
 
@@ -35,7 +35,7 @@ SQLite and programming errors remain operational errors. They do not become not-
 
 ## Service integration examples
 
-These examples describe future service call sites. They do not establish callable endpoints. Use a migrated database from [backend setup](BACKEND_SETUP.md).
+These examples describe repository call sites. GG-005.06 uses the same boundaries in synchronous HTTP handlers. Use a migrated database from [backend setup](BACKEND_SETUP.md).
 
 For a browser with no credential, issue an identity in a short transaction. Deliver the credential only after successful commit.
 
@@ -67,11 +67,13 @@ with session(settings) as connection:
 
 The owning browser receives the authorized search identity. A different valid browser credential and an unknown search ID produce the same resource rejection. Missing, malformed, or unrecognized credentials fail before resource lookup. Resource IDs alone never authorize access.
 
-For a future run read, mutation, replay, or watch, first authorize the search. Then select the run with both `search_id = search.search_id` and the requested `run_id`. Authorizing one search must never permit loading a run by run ID alone. The same rule applies when the browser owns both searches. Admission replay already checks the authenticated command owner, search owner, and search/run membership. Migration 3 also enforces these command relationships with composite foreign keys. Public read, mutation, and watch membership enforcement remains later work, with owned, unknown, and foreign-run verification at GG-007.
+For a run read, mutation, replay, or watch, first authorize the search. Then select the run with both `search_id = search.search_id` and the requested `run_id`. Authorizing one search must never permit loading a run by run ID alone. The same rule applies when the browser owns both searches. Admission replay already checks the authenticated command owner, search owner, and search/run membership. Migration 3 also enforces these command relationships with composite foreign keys. GG-005.06 status reads call `require_search_access` and then `read_snapshot(connection, search_id=search.search_id, run_id=requested_run_id)`. That reader selects both IDs and validates stored identities. GG-005.07 repeats the same paired access check in every event polling transaction before reading the run suffix. Later mutation routes must apply the same rule. Owned, unknown, foreign and mismatched run verification remains GG-007.
 
 ## Browser transport handoff
 
-GG-005.06 and GG-006.04 own HTTP and browser integration. The intended transport is a host-only HttpOnly cookie with `Path=/` and `SameSite=Lax`, plus `Secure` under HTTPS. Local HTTP development cannot require an HTTPS-only cookie. Mutating browser routes, including session issuance, must require an `Origin` that exactly matches a configured trusted frontend origin. Missing or untrusted origins must fail before a cookie-authenticated write. CORS must allow credentials only for those explicit origins, never a wildcard. Read-only requests must not issue identities or mutate state. The actual cookie name, lifetime, and local origin configuration remain adapter details. No cookie or HTTP origin enforcement is currently implemented.
+GG-005.06 implements the `gg_session` host-only HttpOnly session cookie with `Path=/`, `SameSite=Lax`, and Secure for HTTPS requests or `GG_SESSION_COOKIE_SECURE=true`. No Domain, Max-Age or Expires is set. `POST /api/session` returns 204 only after storage closes and issuance commits. A supplied cookie resolves without rotation; empty and invalid cookies receive 401 and no replacement.
+
+Every mutation requires exactly one Origin matching `GG_TRUSTED_FRONTEND_ORIGINS` before request body parsing or storage access. Defaults are `http://localhost:5173` and `http://127.0.0.1:5173`. Credentialed CORS uses explicit origins without a wildcard; rejected preflights use the declared error envelope. All responses use `Cache-Control: no-store`. GET requests issue no identity and change no state. [The API contract](API.md#implemented-http-operations) defines fixed HTTP errors and examples. GG-006.04 owns browser integration.
 
 Only an absent credential permits explicit issuance. A supplied invalid credential must fail, rather than silently become a new owner. Concurrent initial browser requests need one bootstrap operation before authenticated work. Losing the credential loses access through this interface. Expiry, rotation, revocation, cleanup, and account recovery are not implemented.
 

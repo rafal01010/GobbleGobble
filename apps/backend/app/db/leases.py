@@ -5,10 +5,9 @@ import sqlite3
 from dataclasses import dataclass, field, replace
 from uuid import uuid4
 
-from pydantic import ValidationError
-
+from app.db.events import RunNotFound, _append_event, _validate_history
 from app.db.runs import _decode_snapshot
-from app.schemas.lifecycle import QueuedState, RunningState, RunSnapshot, RunStage
+from app.schemas.lifecycle import QueuedState, RunningState, RunSnapshot
 
 _NOW_MS = "CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)"
 
@@ -21,11 +20,6 @@ class LeaseBusy(Exception):
 class LeaseLost(Exception):
     def __init__(self) -> None:
         super().__init__("lease_lost")
-
-
-class RunNotFound(Exception):
-    def __init__(self) -> None:
-        super().__init__("run_not_found")
 
 
 class RunNotClaimable(Exception):
@@ -130,7 +124,7 @@ def _running_snapshot(
         operation=snapshot.operation,
         attempt_id=attempt_id,
         state=state,
-        last_event_sequence=snapshot.last_event_sequence,
+        last_event_sequence=snapshot.last_event_sequence + 1,
     )
 
 
@@ -187,6 +181,7 @@ def claim_run(
         raise RunNotFound()
     if not isinstance(current.snapshot.state, QueuedState | RunningState):
         raise RunNotClaimable()
+    _validate_history(connection, current.snapshot)
     claim = LeaseClaim(run_id, uuid4().hex, worker_id, secrets.token_urlsafe(32), 0)
     digest = _credential_digest(claim.credential)
     if current.lease is None:
@@ -235,6 +230,7 @@ def claim_run(
     _mutate_one(connection, sql, parameters, LeaseBusy())
     state = RunningState(stage="starting" if current.lease is None else "recovering")
     snapshot = _running_snapshot(current.snapshot, claim.attempt_id, state)
+    _append_event(connection, snapshot)
     _write_snapshot(connection, current, claim, digest, snapshot)
     return replace(claim, expires_at_ms=_read_expiry(connection, claim))
 
@@ -283,19 +279,3 @@ def renew_lease(
         LeaseLost(),
     )
     return replace(claim, expires_at_ms=_read_expiry(connection, claim))
-
-
-def advance_running(
-    connection: sqlite3.Connection, claim: LeaseClaim, stage: RunStage
-) -> RunSnapshot:
-    """Change only the running stage after a fresh durable ownership check."""
-    _require_transaction(connection)
-    digest = _claim_digest(claim)
-    try:
-        state = RunningState(stage=stage)
-    except ValidationError:
-        raise ValueError("invalid_run_stage") from None
-    current = _owned_running(connection, claim)
-    snapshot = _running_snapshot(current.snapshot, claim.attempt_id, state)
-    _write_snapshot(connection, current, claim, digest, snapshot)
-    return snapshot
