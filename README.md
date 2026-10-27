@@ -1,48 +1,46 @@
 # GobbleGobble
 
-GobbleGobble is a planned local app for choosing where to eat now using real location and food research.
+GobbleGobble is a local app being built to help you choose where to eat now. The intended experience starts with your location and travel limit, then suggests places with reasons to go, food to try and links to the supporting sources.
 
-The [product and delivery contract](docs/PRODUCT.md) records the agreed journey, scope, and acceptance target. The backend Python environment is available. The initial admission and status API is implemented. A targeted diagnostic worker is implemented. A minimal SvelteKit frontend is initialized. Real research execution and the search interface remain later work.
+## Current state
 
-The [GG-003 feasibility report](docs/FEASIBILITY_GATE.md) records live geography, Google review access, Luna web research and actual SDK tool-agent execution. GG-002.07A repaired bounded food selection and exact-target validation. GG-003 now passes with a concrete source-supported Luna suggestion. Section B includes the [location, request and place contract](docs/SEARCH_CONTRACT.md) from GG-004.01 and the [evidence, food and review contract](docs/EVIDENCE_CONTRACT.md) from GG-004.02. The [recommendation and refinement contract](docs/RECOMMENDATION_CONTRACT.md) from GG-004.03 adds result limits, researched-candidate membership, version-scoped food choices and result lineage. The [lifecycle contract](docs/LIFECYCLE_CONTRACT.md) from GG-004.04 adds operation envelopes, distinct research outcomes and compact ordered-event shapes. The [API contract and schema export](docs/API.md) from GG-004.05 publish these payloads as OpenAPI components for later frontend generation. These contracts and the initial HTTP adapters are implemented and await section verification at GG-007. Run `scripts/local/verify-section-a.sh` for the offline Section A checks.
+The repository contains a light interface preview and backend foundations for admitting work, saving progress and streaming updates. It also includes a controlled worker for testing that lifecycle and bounded research probes for development.
 
-GG-005.01 adds the [SQLite foundation and migration command](docs/DATABASE.md). Database configuration is independent of provider credentials. From the repository root, `scripts/local/migrate-db.sh` is the explicit migration entry point. GG-005.02 adds [anonymous session identity and search authorization helpers](docs/SEARCH_ACCESS.md), with an appended ownership migration. GG-005.03 adds [queued admission and command idempotency](docs/RUN_ADMISSION.md) through a caller-owned transaction and migration 3. Identical starts reuse search and run identities and return current state; conflicts are explicit. GG-005.04 adds [worker claims and lease fencing](docs/WORKER_LEASES.md) with immutable attempt history and migration 4. GG-005.05 adds [atomic checkpoints, committed metadata and ordered events](docs/RUN_CHECKPOINTS.md) with migration 5. GG-005.06 adds explicit cookie bootstrap, readiness, queued admission and paired status reads through the [HTTP API](docs/API.md#implemented-http-operations). GG-005.08 adds the [targeted controlled worker](docs/CONTROLLED_WORKER.md). GG-005.07 implements [live event replay and follow](docs/RUN_EVENTS.md). This infrastructure is implemented and awaits Section B verification at GG-007.
+The complete restaurant-search journey is not connected yet. The interface does not submit searches or display food recommendations. Production research, results, refinement and recovery are still under development. The frontend has had a scoped browser preview; the complete local stack has not passed its integration checks.
 
-Follow [the backend setup instructions](docs/BACKEND_SETUP.md) to install the locked dependencies with `scripts/local/init-backend.sh`. Setup requires uv and does not need provider credentials or make research calls.
+## Try the interface
 
-The [settings reference](docs/SETTINGS.md) documents typed local configuration, explicit live/diagnostic/test modes, and credential preflight. `apps/backend/.env.example` lists the inputs without selecting providers or models. Preflight checks local readiness without contacting services.
+Use Node 24 LTS, or Node 22.17 or newer within the Node 22 release line, and npm. Node 23 is unsupported by the selected frontend tools.
 
-The [call and receipt reference](docs/CALLS.md) describes shared request/time bounds, source-use admission, and metadata-only diagnostics. The call layer passed Section A verification at GG-003.
+From the repository root:
 
-The [location and discovery probe reference](docs/GEOGRAPHY_PROBES.md) describes the prepared Geoapify client, request examples, provider IDs, attribution, and limitations. The [route probe reference](docs/ROUTE_PROBES.md) describes prepared walking and driving estimates and explicit unavailable/failure outcomes. The [web-research probe reference](docs/WEB_RESEARCH_PROBES.md) describes prepared OpenAI search requests, exact citation capture, and source-use limits. [Section A verification passed](docs/FEASIBILITY_GATE.md), with explicit coverage limitations. The early review investigation below records limited live evidence. The [SDK owner and research probe](docs/SDK_PROBE.md) is prepared for GG-002.07. It uses an actual research agent registered as a tool, with separate bounded model requests. The [bounded probe command](docs/LIVE_PROBES.md) connects these clients in GG-002.08. `scripts/local/probe-live.sh --help` lists its options. Transmission requires explicit `--live`, and combined execution shares a ten-request ceiling. Behavioral controls and bounded live feasibility passed at GG-003; production behavior remains later work.
+```sh
+cd apps/frontend
+npm ci
+npm run dev
+```
 
-The [Google-review contract](docs/GOOGLE_REVIEWS.md) makes Google reviews a required primary source, with labeled fallback for missing or unavailable reviews. GG-009.01B is complete. Its selected access path is bounded anonymous Google retrieval demonstrated through YasogaN, without Google billing. The reusable [Google review probe](docs/GOOGLE_REVIEW_PROBES.md) is prepared in GG-002.06A. Production integration and fallback remain later tasks.
+Open [the local preview](http://127.0.0.1:5173/). It runs without the backend, a database or provider credentials. The preview shows the visual direction only. Stop the foreground server with Ctrl+C.
 
-The [review-source feasibility decision](docs/REVIEW_FEASIBILITY.md) records actual YasogaN 3.1.0 execution with 38 distinct reviews across relevance and newest samples for a corroborated Toyo Eatery branch. The specifically approved Google-to-model pilot also passed eight bounded traceability and limitation checks. The user removed legal clearance as a completion gate and reaffirmed full application quality. Historical legal findings are retained without claiming clearance. GG-002.06A prepares the reusable Python adapter and narrow minimized-review admission. Behavioral controls and bounded live feasibility passed at GG-003; production behavior remains later work. Google stays primary, other sources supplementary only, and Wikivoyage excluded.
+See [local setup](docs/SETUP.md) for frontend and backend commands, and [architecture](docs/ARCHITECTURE.md#frontend-design) for the interface design.
 
-The selected review path is the Python and HTTPX adapter based on YasogaN 3.1.0. Two bounded comparisons with signed-in Scraper Pro returned the same 20 newest review IDs, order and ratings for Toyo Eatery and Ippei Honten. Pro supplied no extra substantive review text and took about 15 and 23 times longer. The user chose the anonymous client alone, with no scraper backup. Pro's temporary code, runtime and throwaway profile were removed. [The comparison record](docs/GOOGLE_REVIEW_PROBES.md#temporary-signed-in-pro-comparison) links the saved outputs. Production integration remains GG-009.01A.
+## Work on the backend
 
-The ignored `apps/backend/.env` now supplies the initial provider/model choices, timeouts, and user-supplied Geoapify key. The OpenAI key is available in the process environment. Live preflight passes. Configured OpenAI access and two bounded Geoapify location/discovery calls succeeded. The historical anonymous extractor needed no Google credentials. The new client requires the two independent review settings documented in the [probe reference](docs/GOOGLE_REVIEW_PROBES.md). See the [actual evidence and accounting](docs/REVIEW_FEASIBILITY.md#actual-evidence-and-experiment-accounting).
+The backend uses Python 3.14, FastAPI and SQLite. Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then follow [local setup](docs/SETUP.md). Initialization and the controlled worker need no provider credentials.
 
-The [integration comparison](docs/INTEGRATIONS.md) records proposed provider paths, source-use restrictions, and account requirements. Live feasibility and provider selection remain at GG-003.
+Live research probes contact external services and can incur costs. They require explicit live mode and configured credentials. Start with the [probe guide](docs/LIVE_PROBES.md), rather than treating a probe as the normal application.
 
-The [paired quality-comparison protocol](docs/EVALUATION.md) defines matched inputs, scenario classes, observable criteria, and per-scenario acceptance against normal ChatGPT with web search. Actual baseline capture and live comparison remain future work at GG-023.
+Keep secrets in the backend environment. Do not put OpenAI or provider keys in frontend code or commit local environment files.
 
-The [architecture and ownership reference](docs/ARCHITECTURE.md) maps the proposed modules, adaptive recommendation owner, bounded research tool-agent, durable worker, evidence relationships, and open decisions to their implementation tasks. The backend environment, local settings, bounded call layer, geographic client with location, discovery, and route requests, the web-research client, the prepared Google review client, and the SDK owner/research probe exist so far.
+## Contributor references
 
-The [agent context and completion contract](docs/CONTEXT_MANAGEMENT.md) records CartCart lessons, bounded evidence delivery, reserved final composition and context-recovery acceptance cases. Its implementation remains assigned to the existing research, owner and recovery tasks.
+Read only the guide relevant to your work.
 
-Wikivoyage is excluded from source candidates because of outdated information. Its earlier experiment remains [historical evidence](docs/REVIEW_FEASIBILITY.md#licensed-independent-source-validation) only. Google reviews remain mandatory and primary. Other supplementary sources may be assessed individually for freshness, usefulness and permitted use.
+- To run or configure the project, use [setup](docs/SETUP.md) and [settings](docs/SETTINGS.md).
+- To change the implementation, use [architecture](docs/ARCHITECTURE.md), [API](docs/API.md), [domain validation](docs/DOMAIN.md) and [persistence](docs/DATABASE.md).
+- To understand intended behavior and assess results, use [product requirements](docs/PRODUCT.md) and [quality evaluation](docs/EVALUATION.md).
+- To work with external research, use [source policy](docs/INTEGRATIONS.md), [development probes](docs/LIVE_PROBES.md) and [third-party notices](docs/THIRD_PARTY_NOTICES.md).
 
-The approved Google-to-model pilot fetched ten distinct reviews, selected one seven-word food passage and passed eight traceability/limitation checks in 5.15 seconds using Sol. [The verified record](docs/REVIEW_FEASIBILITY.md#verified-approved-pilot-and-current-disposition) distinguishes this narrow result from semantic quality and commercial clearance. Current local model settings use Luna for development; the Sol receipt is historical evidence.
+After changing public documentation, run `python3 scripts/local/check-docs.py` from the repository root. It checks private-plan references and local links, not readability or runtime behavior.
 
-
-After explicit database migration, run the admission API from `apps/backend` with `.venv/bin/uvicorn app.api.application:create_app_from_environment --factory --host 127.0.0.1 --port 8000`. [Backend setup](docs/BACKEND_SETUP.md#run-the-admission-api) explains independent API settings and [the API reference](docs/API.md#expected-request-and-response-examples) gives literal requests and responses. `GET /ready` checks existing migration history only. The app does not migrate storage, execute research or start workers. HTTP, cookie, ownership and persistence behavior remain unverified until GG-007.
-
-GG-005.07 adds `GET /api/searches/{search_id}/runs/{run_id}/events` with cookie authorization, bounded durable replay, ongoing polling and reconnect cursors. The [event subscription reference](docs/RUN_EVENTS.md) records framing, cursor precedence, checks and deferred gate scenarios. Actual HTTP streaming, delivery timing and disconnect behavior remain unverified until GG-007.
-
-From `apps/backend`, `.venv/bin/python -m app.worker diagnostic --run-id RUN_ID` advances one explicitly selected admitted run through controlled checkpoints and a labeled no-research completion. The [worker reference](docs/CONTROLLED_WORKER.md) records prerequisites, flags, exit behavior and the intended durable sequence. Actual worker execution, terminal SSE and restart/fencing checks remain unverified until GG-007.
-
-GG-006.01 adds the minimal [SvelteKit frontend](docs/FRONTEND_SETUP.md). With Node 24 LTS or supported Node 22.17+, run `npm ci` and `npm run dev` from `apps/frontend` for frontend-only development at the expected `http://127.0.0.1:5173/`. The inspected local Node 23 is unsupported and must be replaced or switched before frontend execution. Only lockfile resolution and source/manifest checks ran here. Installation, frontend checks/build and browser behavior remain unverified. The light-shell visual preview follows GG-006.02; API types and browser integration follow later children.
-
-The [UI-01 light shell preview](docs/FRONTEND_SHELL.md) is running at http://127.0.0.1:5173/ for review. GG-006.02 applies the cream/bone/ink palette, 4px corners and a quieter CartCart-informed composition. Desktop, phone, keyboard disclosure and dark-preference checks passed for the frontend alone. Search, recommendations and backend integration are still incomplete; Section B verification remains GG-007.
+The project is designed for one local host. It is not yet a finished restaurant-recommendation service or a deployment guide.

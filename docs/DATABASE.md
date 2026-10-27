@@ -1,89 +1,89 @@
-# SQLite storage reference
+# Persistence and worker lifecycle
 
-GG-005.01 defines local SQLite connections and explicit migrations in `apps/backend/app/db`. Migration 1 creates the migration ledger. GG-005.02 appends migration 2 for [anonymous sessions and search ownership](SEARCH_ACCESS.md). GG-005.03 appends migration 3 for [queued runs and owner-scoped command idempotency](RUN_ADMISSION.md). GG-005.04 appends migration 4 for [worker attempts and current leases](WORKER_LEASES.md). GG-005.05 appends migration 5 for [ordered events and committed contribution and receipt metadata](RUN_CHECKPOINTS.md). GG-005.08 adds [fenced non-result completion](CONTROLLED_WORKER.md) using these existing tables without a migration. Result tables remain later work.
+SQLite stores anonymous ownership, command replay, run snapshots, attempts, leases, events and safe work metadata. The repositories live in [app/db](../apps/backend/app/db/). They implement the diagnostic lifecycle; recommendation versions, user retry/cancellation and retained research content are not yet stored. See [local setup](SETUP.md) for commands and [the API](API.md) for HTTP transport.
 
 ## Configuration
 
-`load_database_settings()` in `app/core/settings.py` returns frozen `DatabaseSettings`. It reads `GG_DATABASE_PATH` from `apps/backend/.env` and then the process environment. It needs no mode, provider, model, credential, or network access. The [settings reference](SETTINGS.md#independent-local-database-settings) defines shared dotenv admission and errors.
+`load_database_settings()` reads `GG_DATABASE_PATH` from the backend environment without provider/model configuration. The default is `<repository>/data/runtime/gobblegobble.sqlite3`. Relative paths resolve against the repository root. Blank paths, URI/colon syntax, `:memory:` and NUL characters are rejected. Loading settings does not create storage. The [settings reference](SETTINGS.md#independent-local-database-settings) defines precedence and errors.
 
-The default database path is `<repository>/data/runtime/gobblegobble.sqlite3`. Relative paths resolve against the repository root regardless of the working directory. Blank paths, colon syntax including `:memory:` and URI names, and NUL characters are invalid. Paths can name absolute files. A directory fails when SQLite opens it. Loading settings does not create storage.
-
-`data/runtime/` and standard `.sqlite3` journal, WAL, and shared-memory sidecars are ignored by Git. Custom database base files elsewhere inside the repository are not automatically ignored. Configuring an absolute path outside the repository makes that location the operator's responsibility.
+`data/runtime/` and SQLite journal/WAL/shared-memory sidecars are ignored. A custom base file elsewhere is not automatically ignored. Its location, access and retention are the operator's responsibility.
 
 ## Connections and transactions
 
-`app.db.session.session(settings)` opens an existing file using an encoded SQLite file URI with `mode=rw`. A missing database fails instead of creating an unmigrated file. Only `migrate()` creates the database directory and file. Imports have no storage side effects.
+[session.py](../apps/backend/app/db/session.py) opens an existing file with `mode=rw`, `autocommit=True`, a five-second SQLite timeout and thread affinity. It enables foreign keys and returns rows by column name. Sessions own fresh connections, close them on exit and roll back unfinished transactions. Missing storage fails rather than being created by a request. Only explicit migration creates the directory/file.
 
-Each session owns a fresh connection in the calling thread. It uses `autocommit=True`, `timeout=5.0`, `check_same_thread=True`, and `sqlite3.Row`. It enables and checks foreign-key enforcement before yielding the connection. Python's default type conversion remains disabled. No pool or global connection exists. Sessions always close their connection and roll back an unfinished transaction before closing.
+`transaction(connection)` rejects nesting and uses SQL `BEGIN IMMEDIATE`, `COMMIT` and `ROLLBACK`. An escaping exception, including commit failure, rolls back while a transaction remains active. Connection `commit()` and `rollback()` are ineffective with `autocommit=True`, so the helper uses SQL commands.
 
-`transaction(connection)` rejects nesting, executes `BEGIN IMMEDIATE`, and executes SQL `COMMIT` on success. An escaping exception, including commit failure, causes SQL `ROLLBACK` while the connection still has an active transaction. Cleanup preserves the original exception. Connection `commit()` and `rollback()` are ineffective with `autocommit=True`, so the helper uses SQL commands. The [Python sqlite3 transaction reference](https://docs.python.org/3.14/library/sqlite3.html#transaction-control) documents this distinction.
+Repository writes require the caller's short transaction. Let every failure escape it. Catching an error inside the block and then committing can preserve earlier provisional writes. Deliver return values only after commit. Bind SQL parameters and close cursors before returning.
 
-Repository operations share the caller's connection and transaction boundary. They bind values through SQL placeholders. A transaction must contain only short local database operations. Finish the transaction before provider calls, model calls, sleeps, user interaction, or streaming. Close read cursors before returning. The helper cannot prevent callers from performing external work, so this remains a caller contract.
-
-A future async handler must run each complete synchronous database operation in one worker thread. A connection cannot cross an `await` or move between threads. The [SQLite connection reference](https://docs.python.org/3.14/library/sqlite3.html#sqlite3.connect) defines the timeout, URI, and thread options. This task enables no WAL mode and adds no automatic retries beyond SQLite's five-second lock timeout.
-
-Example usage for a later repository is:
-
-```python
-from app.core.settings import load_database_settings
-from app.db.session import session, transaction
-
-settings = load_database_settings()
-with session(settings) as connection:
-	with transaction(connection):
-		connection.execute(statement, parameters).close()
-```
-
-`statement` and `parameters` come from the repository operation. The caller completes all external work after leaving these contexts.
+Provider/model work, sleeps, user interaction and streaming must occur outside storage. An async caller offloads each complete synchronous operation into one thread; it never carries a connection across `await`. The event subscription uses a short deferred read transaction for a consistent authorized snapshot without reserving the writer lock. There is no pool, WAL-mode setup or automatic retry beyond SQLite's lock timeout.
 
 ## Migration history
 
-`app/db/migrations.py` owns the ordered immutable `MIGRATIONS` tuple. Each frozen `Migration` holds its integer version, name, and tuple of individual SQL statements. Its SHA-256 checksum covers JSON containing the version, name, and exact statement strings. Versions start at 1 and remain contiguous. Later changes append records. Applied names and SQL must never change.
+[migrations.py](../apps/backend/app/db/migrations.py) owns the immutable ordered `MIGRATIONS` tuple. Each record has a contiguous integer version, name and individual SQL statements. Its SHA-256 checksum covers the exact version/name/statement JSON. Append migrations; never edit applied records.
 
-Migration 1, `create_migration_ledger`, creates `schema_migrations` with these columns:
+The runner acquires `BEGIN IMMEDIATE` before inspecting schema/history. A fresh database applies the full manifest. An existing database must have an exact nonempty prefix of versions, names and checksums. Missing versions, altered history, future versions, invalid ledgers and nonempty unversioned schemas are rejected. The runner never stamps, resets, downgrades or deletes an unknown database.
 
-| Column | Definition |
+All pending statements and ledger rows commit together or roll back together. Empty file/directory creation can survive failure and be initialized on retry. Concurrent migration processes serialize before checking pending work. A current schema performs no migration statements. Manifest entries cannot contain their own transaction commands, `VACUUM` or incompatible journal changes; the runner neither splits SQL nor uses `executescript()`.
+
+| Version | Main storage |
 |---|---|
-| `version` | `INTEGER PRIMARY KEY` |
-| `name` | `TEXT NOT NULL` |
-| `checksum` | `TEXT NOT NULL` |
+| 1 | `schema_migrations`, with version, name and checksum. |
+| 2 | `anonymous_sessions` and `search_ownership`. |
+| 3 | `runs` and owner-scoped `run_commands`, with composite ownership/run-membership keys. |
+| 4 | Append-only `run_attempts` and one current `run_leases` row per run. |
+| 5 | `run_events`, `run_contributions`, `run_receipts` and same-run `contribution_receipts` links. |
 
-The ledger contains no timestamp. Migration acquires `BEGIN IMMEDIATE` before reading schema or history. An empty database gets the ledger and its first row in the same transaction. An existing ledger must have the expected columns and an exact nonempty prefix of the manifest's versions, names, and checksums. The runner rejects missing versions, unknown future versions, altered history, an invalid ledger, or a nonempty unversioned schema. It never stamps, resets, deletes, or downgrades an unknown database.
+Migration 5 leaves legitimate cursor-zero snapshots unchanged and invents no historical events. Ledger agreement detects edited migration records, not arbitrary manual changes to application tables.
 
-Migration 2, `create_anonymous_search_ownership`, creates `anonymous_sessions`, `search_ownership`, and `search_ownership_owner_idx`. The [search access reference](SEARCH_ACCESS.md#ownership-model) records their columns and constraints. Migration 3, `create_queued_run_admission`, adds `runs`, `run_commands`, the composite ownership parent index, and the unique start-command index. The [admission reference](RUN_ADMISSION.md#storage-and-privacy) records their fields and constraints. Composite foreign keys enforce command owner-to-search consistency and run-to-search membership. Migration 4, `create_worker_attempts_and_leases`, adds immutable attempt history and one current lease row per run. The [worker lease reference](WORKER_LEASES.md#storage) records the columns and constraints. Migration 5, `create_run_events_and_committed_work`, adds `run_events`, `run_contributions`, `run_receipts`, and `contribution_receipts`. It leaves existing cursor-zero snapshots unchanged and synthesizes no history. A fresh database applies migrations 1 through 5 together. Earlier-version databases retain their ledger rows and apply only their pending suffix.
+## Anonymous ownership
 
-The runner executes each statement individually and inserts the corresponding ledger row after its statements succeed. It commits all pending migrations together. A failure rolls back the pending SQL and ledger changes. Directory or empty-file creation can survive failure, and a retry can initialize that empty file. Concurrent migration processes serialize through the write lock before checking pending work. A valid current database applies no statements and returns an empty tuple.
+[ownership.py](../apps/backend/app/db/ownership.py) issues a server-generated 256-bit browser credential, stores only its domain-prefixed SHA-256 digest and binds searches to a separate session identity. Search/run IDs grant no authority. A well-formed caller-selected credential cannot create an identity.
 
-Migration entries must not include transaction commands, `VACUUM`, journal-mode changes, or other statements incompatible with the outer atomic transaction. The runner does not split SQL or use `executescript()`. History checks detect edited migration records. They do not attest to manual changes to future application tables.
+`issue_session` is a deliberate write, and the raw credential is delivered only after commit. `resolve_session` rejects malformed or unknown credentials. `create_search` binds a new ID to an existing principal. `require_search_access` returns the owned search; foreign and unknown searches share `not_found`. Invalid credentials retain `invalid_session` rather than causing replacement issuance.
 
-## Command and exit codes
+Before any run read, replay, mutation or watch, authorize the search and select the run by both search ID and run ID. This pairing is required even when the browser owns both searches. Composite foreign keys bind command owner, search and run membership. Run-only trusted readers perform no browser authorization themselves.
 
-After backend environment initialization, the wrapper resolves the backend directory from its own location:
+Credentials and precise location must stay out of URLs, public snapshots and unnecessary logs. Frozen internal principal/claim representations hide fields, but explicit serialization can still expose them. Losing the browser credential loses access through this interface. Expiry, rotation, revocation, cleanup and account recovery are not implemented. Cookie/Origin requirements are documented in the API reference.
 
-```sh
-./scripts/local/migrate-db.sh
-```
+## Admission and replay
 
-The equivalent command from `apps/backend` is:
+`admit_start` in [runs.py](../apps/backend/app/db/runs.py) receives validated `StartRunRequest` input inside the caller's `BEGIN IMMEDIATE` block. It resolves ownership and checks `(owner_session_id, command_id)` before allocating identities. It never waits for a provider, model or worker.
 
-```sh
-.venv/bin/python -m app.db.migrate
-```
+A first start atomically creates search ownership, one queued snapshot, queued event 1 and an immutable command record. The snapshot has no attempt. Equal normalized input returns the same identities and current persisted snapshot, including later progress. Conflicting payload or command-kind reuse raises `CommandConflict`. Another owner can independently use the same command ID. Corrupt/missing linked records fail operationally instead of admitting replacement work.
 
-Both commands use `GG_DATABASE_PATH` and accept only the standard `-h` and `--help` options. They do not start HTTP services or load provider settings. A successful first migration prints `database_migrations_applied 1,2,3,4,5`. An upgrade from version 1 prints `database_migrations_applied 2,3,4,5`. An upgrade from version 2 prints `database_migrations_applied 3,4,5`. An upgrade from version 3 prints `database_migrations_applied 4,5`. An upgrade from version 4 prints `database_migrations_applied 5`. A current database prints `database_schema_current`. These are the current manifest's expected outputs; database execution remains at GG-007.
+Canonical version-1 start JSON includes all defaults/nulls and the complete validated request, excludes the command lookup key, sorts keys and rejects nonfinite values. Equivalent walking defaults compare equally. Meal time normalizes to UTC with six fractional digits and `Z`; coordinate signed zero becomes `0.0`. Strings and array order remain exact. Comparison uses the full canonical JSON, not merely a hash.
 
-| Exit code | Meaning |
-|---|---|
-| `0` | The pending migrations committed, or the schema was current. Help also exits successfully. |
-| `1` | Configuration, filesystem, SQLite, or migration-history failure. |
-| `2` | An unsupported command argument. |
+A retry must retain its original meal instant. Changed normalized input needs a new command ID. Changing schema defaults or canonicalization requires compatibility handling for stored records. The complete request, including sensitive location, exists in the immutable command payload. No cleanup policy currently defines when replay records may be deleted.
 
-Operational errors print one fixed code to stderr. The codes are `database_configuration_error`, `database_filesystem_error`, `database_sqlite_error`, and `database_migration_history_error`. They omit configured paths, submitted values, credentials, and SQL text. Library callers receive `ConfigurationError`, `MigrationError`, or the underlying filesystem or SQLite exception. Shell failures to find the initialized interpreter retain the shell's exit code.
+## Worker leases
 
-## Verification boundary
+[leases.py](../apps/backend/app/db/leases.py) claims a specific queued run or reclaims an expired running attempt. A claim appends attempt history, installs a new random credential digest and commits running state at `starting` or `recovering` with the next event. A worker ID alone grants no authority. `lease_seconds` is a strict integer from 1 through 3600; boolean durations are invalid.
 
-GG-005.01 implementation checks cover imports, credential-free settings and dotenv projection, syntax, targeted lint, CLI help, and invalid arguments. They do not execute migrations or inspect a database schema. GG-007 must migrate an empty database, inspect the ledger and the schema expected from the then-current migration manifest, repeat the migration, check path independence, exercise invalid history and concurrent attempts, and prove failed migrations leave no committed partial schema or ledger changes. Broad backend checks remain at GG-007. No live calls ran for this child, and GG-007 does not authorize provider or model calls.
+A live competing claim raises `LeaseBusy`. A missing run raises `RunNotFound`; a terminal/cancelling target raises `RunNotClaimable`. Reclaim preserves search/run/operation identity, retains old attempts and replaces the current credential. Queued state cannot retain attempt history or a lease; returning attempted work to queued is unsupported.
 
-GG-005.03 adds caller-owned queued admission and current-snapshot replay. Its pure checks do not execute SQL. GG-007 must prove owner-scoped identical and conflicting commands, constraints, concurrent admission, rollback, restart, and replay after progress. See [expected admission observations](RUN_ADMISSION.md#expected-observations-and-deferred-verification).
+The final snapshot update compares exact prior snapshot JSON and current run/attempt/worker/credential/attempt-history identity. It also requires expiry to exceed fresh SQLite UTC milliseconds in that same statement. Equality is expired. Python time and the informational expiry returned in a claim cannot authorize a write. Renewal extends the same still-live claim from fresh database time, emits no event and cannot revive expiry.
 
-GG-005.04 adds fresh SQLite millisecond expiry fences for claim, renewal, and running-stage mutation. Its pure checks execute no SQL. GG-007 owns migration, duplicate claim, expiry, stale ownership, rollback, and restart proof. See [worker lease transitions and verification](WORKER_LEASES.md).
+Checkpoint/completion writers append their provisional event/metadata before this final fence. A failed fence raises `LeaseLost`; caller rollback must undo all provisional writes. No writes follow the fence. Acceptance happens at the serialized statement, not at a promised future commit time. The trusted host wall clock can roll back; no monotonic-expiry guarantee is provided.
+
+Lease loss means stop advancing/publishing through that attempt and discard later external results unless explicitly accepted by future recovery. It cannot stop an already-issued request or ensure exactly-once external billing. Trusted code with an unrestricted database connection is not sandboxed by these helpers.
+
+## Checkpoints and events
+
+[checkpoints.py](../apps/backend/app/db/checkpoints.py) commits a running stage, contribution metadata and safe receipts with one matching progress event. Every accepted call advances sequence, even when a metadata batch is empty or repeated. Stage names may repeat and do not establish a transition-order state machine.
+
+Each tuple batch accepts at most 256 contributions and 256 receipts. A contribution has a local UUID, closed capability/outcome and at most 256 incoming receipt links, normalized to a sorted set. It contains no arbitrary research payload, URL, quote, place ID or model response. Inputs are revalidated before writes, including unchecked model instances.
+
+Receipts persist only their `safe_record()` projection in canonical JSON. Decimal cost precision is preserved; unknown usage/cost remains null. Same-ID, same-content metadata deduplicates within a run while retaining original attempt/acceptance sequence. Changed content or cross-run ID reuse raises `ReceiptConflict` or `ContributionConflict`. Receipt links must resolve within the run; missing links roll back the checkpoint. Multiple contributions may share an earlier same-run receipt.
+
+`run_events` is keyed by `(run_id, sequence)`. Contributions and receipts reference their accepting progress event and attempt; link-table constraints require same-run records. Append conventions do not prevent trusted direct SQL from changing them.
+
+[events.py](../apps/backend/app/db/events.py) reads a bounded ordered suffix strictly after the cursor. Internal limits are 1 through 1000; cursors are strict nonnegative integers. `read_committed_work` returns unique accepted metadata in event/identity order. Reads validate stored JSON, scalar identity, accepting events and latest snapshot/history agreement. Nonzero cursors without matching history are corruption. The history check scans the run event index; no scale claim is measured.
+
+## Completion and verification limits
+
+[completion.py](../apps/backend/app/db/completion.py) accepts only revalidated coverage-gap or technical-failure outcomes. It preserves identities, advances sequence, appends the matching completed event and uses the same final live-lease fence. Lease rows remain historical; terminal state rejects later claims/renewals. Ready/partial results, no-matches publication and cancellation need their own storage and event projection.
+
+The shared runner in [worker.py](../apps/backend/app/worker.py) owns claim, renewal, checkpoint and completion transactions. Its finite job callbacks receive no connection or lease credential and run after storage closes. A callback exception may publish only a fixed retryable `worker_failure` through a still-current claim. Storage errors escape; interruption leaves the attempt for expiry/reclaim. Arbitrarily long callbacks have no concurrent heartbeat and need bounded or cooperative work before production integration.
+
+The [setup guide](SETUP.md#run-a-diagnostic-job) defines diagnostic commands and exit codes. Pure validation and source checks do not prove database/API/worker behavior. Integrated verification still needs fresh/upgrade/repeat migrations, concurrent admission/claims, ownership isolation, rollback after provisional writes, final-fence expiry, restart, lost-response replay, corruption and terminal event equality. No measured throughput, contention or exactly-once billing guarantee follows from this implementation.

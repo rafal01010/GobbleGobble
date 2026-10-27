@@ -1,18 +1,18 @@
 # Paired quality-comparison protocol
 
-This document defines the GG-001.03 protocol before application outputs exist. GG-001.03 is implemented, awaiting section verification at GG-003. No baseline, paired result, timing, cost, or quality verdict has been captured. The [product contract](PRODUCT.md#quality-and-timing) defines the target. The [source-use findings](INTEGRATIONS.md#permission-findings) constrain all research and retained evidence.
+This protocol defines how to compare GobbleGobble with normal ChatGPT using web search. It establishes requirements for a future quality assessment, not a passing quality result. No complete paired comparison has been established. The [product contract](PRODUCT.md#quality-and-timing) defines the target. The [source-use findings](INTEGRATIONS.md#access-and-content-use-boundaries) constrain all research and retained evidence.
 
 ## Comparison target
 
 GobbleGobble must be at least as useful overall as normal ChatGPT with web search for each matched nominal scenario. The comparison concerns a person's decision about where to eat now and what food to get. A scenario cannot pass through an average that hides a material loss in discovery, food usefulness, or supporting information.
 
-The baseline is an actual answer from the normal ChatGPT interface with web search. An API model, simulated transcript, fixture, agent-generated substitute, or remembered answer is not this baseline. A missing ChatGPT session leaves comparative acceptance pending. GG-020.02 provides capture tooling or exact manual operator steps. Actual paired capture and acceptance belong to GG-023.
+The baseline is an actual answer from the normal ChatGPT interface with web search. An API model, simulated transcript, fixture, agent-generated substitute, or remembered answer is not this baseline. A missing ChatGPT session leaves comparative acceptance pending. Capture tooling or exact manual operator steps must be available before the comparison. Both genuine baseline evidence and attributable human review are required.
 
 English output and single-host local operation remain starting assumptions. Research can use local-language evidence and preserve place names. This protocol does not introduce future-date planning or change the product's travel and review rules.
 
 ## Predefined scenario classes
 
-The GG-020.01 manifest must contain at least six real pairs across at least three countries. The minimum classes below reserve Japan and two distinct additional countries. Country B and Country C are placeholders for selection in GG-020.01. They are not a country whitelist. Density describes the selected area, not how many places either system happens to return.
+The frozen scenario manifest must contain at least six real pairs across at least three countries. The minimum classes below reserve Japan and two distinct additional countries. Country B and Country C are placeholders to choose before capture. They are not a country whitelist. Density describes the selected area, not how many places either system happens to return.
 
 | Class | Geographic and travel context | Intended observation |
 |---|---|---|
@@ -23,11 +23,11 @@ The GG-020.01 manifest must contain at least six real pairs across at least thre
 | Q-05 | Dense area in Country B, driving within 30 minutes | Branch identity, driving constraints, and comparative reasons across worthwhile alternatives. |
 | Q-06 | Sparse Japanese area, walking within an adjusted 20-minute limit | Local-language research outside a dense center, practical uncertainty, and omission handling. |
 
-Exact origins, countries B and C, coordinates, destination timezones, capture windows, and outlet-coverage expectations remain unset. GG-020.01 fixes them before either system produces candidate answers. It also finalizes human scoring anchors consistent with the criteria below. The nominal set must cover varied meal outlets across restaurants, cafes, stalls, food courts, and takeaway. No scenario requires an unsuitable outlet merely to satisfy a type count.
+Exact origins, countries B and C, coordinates, destination timezones, capture windows, and outlet-coverage expectations remain unset. Freeze them before either system produces candidate answers. It also finalizes human scoring anchors consistent with the criteria below. The nominal set must cover varied meal outlets across restaurants, cafes, stalls, food courts, and takeaway. No scenario requires an unsuitable outlet merely to satisfy a type count.
 
 Do not choose or replace a location because the app already performed well there. Record the manifest revision and selection rationale before runs. Keep failed attempts and any later amendments. A replacement requires a documented input, access, or matching defect and a fresh pair. A weak answer remains a quality finding and cannot be removed by relabeling its scenario.
 
-Rare evidence conditions belong to separately labeled controls. GG-023 includes no-review, mixed-review, relevance-selected negative samples, missing-menu, closed-place, route-unavailable, and provider-outage cases. These controls do not replace any of the six real pairs. Naturally occurring versions can also inform a real comparison without being required to occur on demand.
+Rare evidence conditions belong to separately labeled controls. Required controls include no-review, mixed-review, relevance-selected negative samples, missing-menu, closed-place, route-unavailable and provider-outage cases. These controls do not replace any of the six real pairs. Naturally occurring versions can also inform a real comparison without being required to occur on demand.
 
 ## Matched inputs and execution
 
@@ -47,7 +47,7 @@ The shared timestamp records the app's actual eat-now context. Supply that time 
 
 The baseline must receive the product's evidence rules as user requirements. Exact dishes and prices need sources, inferred food needs a label, mixed or unreviewed places remain eligible, and selected negative reviews do not establish uniformly bad reception. This shared brief must not supply candidates, internal prompts, or app research. Search wording, research strategy, sources, and answer layout can differ.
 
-Use the following procedure when GG-023 authorizes live execution.
+Use the following procedure only for an explicitly authorized live comparison with configured request, time and cost limits.
 
 1. Freeze the manifest, shared brief, comparison criteria, code identity, and effective configuration before either answer. Confirm access, source permissions, and capture prerequisites. This is preparation, not a passing quality verdict.
 2. Submit both systems near the shared eat-now reference time. Use a planned maximum five-minute window containing the reference time and both submission times. Record actual differences. This tolerance is a protocol choice, not a measured freshness guarantee.
@@ -61,7 +61,7 @@ Hidden baseline model versions, usage, and account controls must be marked unkno
 
 ## Observable quality judgments
 
-For each criterion, the reviewer records whether the app is better, equivalent, worse, or unresolved relative to ChatGPT, with a reason tied to evidence. Honest absence of optional information is not itself a failure. Supported useful detail can still make one answer more helpful. No numeric weights or final scoring form are implemented here. GG-020.01 finalizes scoring without weakening per-scenario acceptance.
+For each criterion, the reviewer records whether the app is better, equivalent, worse, or unresolved relative to ChatGPT, with a reason tied to evidence. Honest absence of optional information is not itself a failure. Supported useful detail can still make one answer more helpful. No numeric weights or final scoring form are implemented here. Freeze the scoring rules before capture without weakening per-scenario acceptance.
 
 | Criterion | Observable judgment and supporting evidence |
 |---|---|
@@ -79,17 +79,17 @@ The human overall verdict is that the app is more useful, at least as useful, le
 
 ## Acceptance and failure handling
 
-GG-023 requires all predefined nominal pairs to have valid matching, genuine baseline/search evidence, an attributable human verdict of at least as useful, and no unresolved material quality or factual defect. A favorable average across countries, scenarios, criteria, or attempts cannot cancel a failed case.
+Acceptance requires all predefined nominal pairs to have valid matching, genuine baseline/search evidence, an attributable human verdict of at least as useful, and no unresolved material quality or factual defect. A favorable average across countries, scenarios, criteria, or attempts cannot cancel a failed case.
 
-Unsupported factual assertions, false travel-limit claims, unjustified review exclusion, or an empty answer when supported options exist fail the gate. A truthful limited/no-match answer needs actual research that explains its outcome. Missing optional menus, prices, or reviews alone does not establish failure. Unknown facts must remain qualified, and unresolved material support keeps acceptance pending.
+Unsupported factual assertions, false travel-limit claims, unjustified review exclusion, or an empty answer when supported options exist fail acceptance. A truthful limited/no-match answer needs actual research that explains its outcome. Missing optional menus, prices, or reviews alone does not establish failure. Unknown facts must remain qualified, and unresolved material support keeps acceptance pending.
 
 The nominal useful-answer target is 180 seconds for the app. Record and investigate every miss rather than silently increasing the target. An unresolved miss keeps timing acceptance open. Baseline timing is reported separately and does not relax the app target. No statistical or worldwide guarantee follows from this finite comparison.
 
-Controlled edge cases, desktop/mobile inspection, keyboard use, and affected offline checks are additional GG-023 obligations. Passing controls does not establish live parity, and a live parity verdict does not establish those separate obligations.
+Controlled edge cases, desktop/mobile inspection, keyboard use, and affected offline checks are additional acceptance requirements. Passing controls does not establish live parity, and a live parity verdict does not establish those separate obligations.
 
 ## Evidence, timing, and retention
 
-Each later attempt belongs under ignored `data/verification/GG-023/attempt-XX/`. Preserve the following evidence when permitted.
+Each attempt needs a separate local evidence directory. Preserve the following material only when source retention rules permit it. Private local captures are not assumed to be part of the public repository.
 
 - The frozen scenario manifest and shared brief, actual submitted inputs, matching decision, reference and actual timestamps, destination timezone, and scenario-selection rationale.
 - The actual paired outputs or permitted captures with clickable sources, visible baseline model/mode/search evidence, capture method, and disclosed context or blinding limits.
@@ -101,18 +101,10 @@ Each later attempt belongs under ignored `data/verification/GG-023/attempt-XX/`.
 
 Source policies apply to originals, excerpts, screenshots, normalized views, reviewer notes, and derived findings. Factual freshness and permitted retention are separate. Do not save restricted content merely to make the comparison replayable. Keep only permitted metadata when content retention is prohibited, and record the omission reason and expiry. Omit secrets and private location data from shared reports. Use deliberate public scenario origins for retained manifests.
 
-If restrictions prevent enough permitted evidence from supporting the paired human assessment, record the limitation and keep comparative acceptance pending. Do not silently substitute invented text, an API answer, or unsupported metadata. Later capture and evidence enforcement must follow the [source-use findings](INTEGRATIONS.md#openai-processing-and-diagnostics) and the selected policies established at GG-003 and GG-009.
+If restrictions prevent enough permitted evidence from supporting the paired human assessment, record the limitation and keep comparative acceptance pending. Do not silently substitute invented text, an API answer, or unsupported metadata. Capture and evidence enforcement must follow the [source-use findings](INTEGRATIONS.md#access-and-content-use-boundaries) and the [Google review policy](INTEGRATIONS.md#public-review-model-input).
 
-## Task boundaries and current status
+## Current status
 
-| Task | Owned outcome |
-|---|---|
-| GG-001.03 | This protocol, observable criteria, predefined scenario classes, and document-local checks. No exact scenario manifest, capture, runner, or live comparison. |
-| GG-003 | Section A contract review, including whether each criterion has an observable judgment, plus the separate bounded live feasibility probes. A ChatGPT baseline capture is not required at this gate. |
-| GG-020.01 | Exact frozen scenario inputs and finalized human scoring rules consistent with this protocol. |
-| GG-020.02 | Genuine baseline capture implementation or exact manual steps, and the blinded comparison form. |
-| GG-020.03 | Evaluation execution, explicit offline/live selection, and actual timing, usage, and cost reporting. |
-| GG-023 | Authorized real pairs, named human assessments, controls and real interface checks, measurements, defect disposition, and the per-scenario quality verdict. |
-| GG-025 | Final acceptance retains the passing GG-023 comparison on the delivered configuration, with renewed evidence for relevant behavior changes. |
+The protocol defines observable criteria and scenario classes. Exact origins, countries B and C, capture tools and final scoring forms are not yet fixed. No genuine paired capture or human quality verdict is supplied by this document. Provider access, an actual ChatGPT session, authorized live execution and source-safe retained evidence remain prerequisites.
 
-The document can be reviewed now. It establishes no measured application capability or parity result. Provider access, permissions, actual ChatGPT access, operational scoring/capture tools, and all live quality evidence remain subject to their scheduled tasks. GG-003 and GG-020 through GG-025 remain incomplete.
+The current frontend is a visual shell. Controlled lifecycle checks and bounded provider probes do not establish quality parity. Reassess relevant cases after production research, publication, refinement or context-policy changes. Passing a finite set of cases establishes only those observed outcomes, not statistical or worldwide guarantees.

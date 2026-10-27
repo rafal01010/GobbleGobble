@@ -1,10 +1,10 @@
 # Backend settings reference
 
-GG-002.02 adds local settings and credential preflight in `apps/backend/app/core/settings.py`. The supported entry point is `load_settings`. It parses configuration without contacting a provider. The [backend setup guide](BACKEND_SETUP.md#configure-local-settings) describes local setup.
+`apps/backend/app/core/settings.py` parses local configuration and exposes explicit credential preflight without contacting a provider. General research configuration uses `load_settings`. Independent API, database and review-only loaders avoid requiring unrelated credentials. See [backend setup](SETUP.md#configure-research-and-run-checks) for local configuration.
 
 ## Sources and precedence
 
-The default file is `apps/backend/.env`, resolved relative to the settings module rather than the working directory. Process environment values override file values. There are no default provider selections, model IDs, or timeout values. GG-005.01 adds an independent `load_database_settings` entry point with a default durable path. GG-002.06A adds optional independent review fields and the credential-free `load_review_settings` entry point. The initializer does not load settings.
+The default file is `apps/backend/.env`, resolved relative to the settings module rather than the working directory. Process environment values override file values. There are no default provider selections, model IDs, or timeout values. `load_database_settings` has a default durable path. Optional review fields also have a credential-free `load_review_settings` entry point. The initializer does not load settings.
 
 `load_settings(mode=..., env_file=...)` accepts a different dotenv path. A relative override is relative to the caller's working directory. `env_file=None` disables file loading but still reads the process environment. An absent file is allowed when the environment supplies the required configuration. Unknown dotenv fields and invalid or unreadable files produce configuration errors. Unrelated process environment variables do not become settings.
 
@@ -102,17 +102,17 @@ The second example still requires selections, model IDs, and timeouts in the pro
 
 ## Completion boundary
 
-The [bounded call layer](CALLS.md) added in GG-002.03 resolves geographic/model timeouts from `Settings` and combines them with an explicit request allowance and total deadline. Bounds are caller arguments, with no additional environment variables or chosen limits. Configuring settings alone invokes no calls. GG-002.04 through GG-002.08 add provider clients, SDK wiring, and the probe command. Loading settings does not disable SDK tracing.
+The [bounded call layer](LIVE_PROBES.md#bounds-and-accounting) combines configured timeouts with caller-supplied request allowances and a total deadline. Loading settings invokes no calls and does not configure SDK tracing.
 
-Local readiness proves neither key validity nor billing, enabled APIs, quota, model availability, route coverage, or source permission. Earlier [bounded experiments](REVIEW_FEASIBILITY.md#actual-evidence-and-experiment-accounting) observed Sol-based OpenAI access and Geoapify location/discovery, and recorded timings and usage. Those receipts do not validate the current Luna models, routes or application-wide operating limits. GG-003 retains the missing-key, environment-override, effective-settings and remaining live verification cases. The selected anonymous Google review path requires no Google credential or billing; conditional API alternatives remain documented in the [integration findings](INTEGRATIONS.md).
+Local readiness proves neither key validity nor billing, enabled APIs, quota, model availability, route coverage or source permission. Validate the selected configuration through an explicitly bounded live probe when needed. The anonymous Google review path needs no Google credential or billing; [integration findings](INTEGRATIONS.md) describe conditional API alternatives.
 
 ## Independent anonymous reviews
 
-GG-002.06A adds `ReviewSettings` and `load_review_settings(mode=..., env_file=...)`. The loader uses the same dotenv path, environment precedence, fixed errors and explicit modes. It reads review settings without requiring geography, web, model or credential configuration. Known non-review dotenv fields are ignored for this entry point, while unknown names or a malformed file still fail. Review-provider selection and timeout remain optional during loading so diagnostic inspection can report an unconfigured source. `GoogleReviewClient.preflight()` requires both before transmission.
+`load_review_settings(mode=..., env_file=...)` returns `ReviewSettings`. The loader uses the same dotenv path, environment precedence, fixed errors and explicit modes. It reads review settings without requiring geography, web, model or credential configuration. Known non-review dotenv fields are ignored for this entry point, while unknown names or a malformed file still fail. Review-provider selection and timeout remain optional during loading so diagnostic inspection can report an unconfigured source. `GoogleReviewClient.preflight()` requires both before transmission.
 
-Anonymous reviews need no Google key, account, billing or cookies. Selecting `google_reviews` does not add a geographic credential requirement. General `load_settings` keeps its existing geography and OpenAI preflight. A review-only `AttemptCalls` accepts `ReviewSettings` and can execute only review calls. Shared attempts use the general settings plus the two review fields. The [review probe reference](GOOGLE_REVIEW_PROBES.md) records the client contract and prepared gate scenarios.
+Anonymous reviews need no Google key, account, billing or cookies. Selecting `google_reviews` does not add a geographic credential requirement. General `load_settings` keeps its existing geography and OpenAI preflight. A review-only `AttemptCalls` accepts `ReviewSettings` and can execute only review calls. Shared attempts use the general settings plus the two review fields. The [review probe reference](LIVE_PROBES.md#adapter-behavior-worth-knowing) records the client contract and bounded probe scenarios.
 
-This task does not change the local `.env`, provider selections or model IDs. Current local development models remain Luna by the recorded user choice. Loading configuration invokes no network or model operation. Behavioral configuration checks and live review access remain at GG-003.
+Model IDs and provider selections come from the reader's configuration. Loading configuration invokes no network or model operation and does not select a fallback model.
 
 ## Independent local database settings
 
@@ -127,10 +127,10 @@ The [database reference](DATABASE.md) defines connections, transactions, the mig
 
 ## Independent API settings
 
-`load_api_settings(env_file=...)` returns frozen `ApiSettings` with `trusted_frontend_origins` and `session_cookie_secure`. It shares the dotenv registry, process precedence and value-free `ConfigurationError` behavior. It requires no mode, provider, credential, model or timeout. Other loaders ignore these known API variables, while unknown dotenv names still fail. The actual local `.env` is unchanged by GG-005.06.
+`load_api_settings(env_file=...)` returns frozen `ApiSettings` with `trusted_frontend_origins` and `session_cookie_secure`. It shares the dotenv registry, process precedence and value-free `ConfigurationError` behavior. It requires no mode, provider, credential, model or timeout. Other loaders ignore these known API variables, while unknown dotenv names still fail. Loading API settings does not edit `.env`.
 
 Origins use canonical lowercase HTTP(S) scheme and host, with an optional nondefault port. They must be unique concrete origins without user information, paths, query, fragment, wildcard, whitespace or trailing slash. Exact comparison does not normalize incoming headers. Example configuration is `GG_TRUSTED_FRONTEND_ORIGINS=["https://example.test"]`. Invalid fields report `GG_TRUSTED_FRONTEND_ORIGINS: invalid` or `GG_SESSION_COOKIE_SECURE: invalid` without their values.
 
 `session_cookie_secure=false` permits local HTTP development. HTTPS requests still receive Secure cookies. Setting it to true forces Secure even for HTTP requests, where browsers may withhold the cookie. It does not enable TLS or configure trusted proxy headers. Cookie name, path and SameSite policy are fixed in [the API contract](API.md#implemented-http-operations).
 
-`create_app` accepts explicit API and database settings without calling loaders. Schema export supplies inert model defaults without evaluating settings environment sources. Runtime startup uses `create_app_from_environment`, which calls only the API and database loaders. Neither startup path migrates or opens storage. Readiness performs the existing-schema check when requested. HTTP and database verification remain GG-007.
+`create_app` accepts explicit API and database settings without calling loaders. Schema export supplies inert model defaults without evaluating settings environment sources. Runtime startup uses `create_app_from_environment`, which calls only the API and database loaders. Neither startup path migrates or opens storage. Readiness performs the existing-schema check when requested. Integrated HTTP and database behavior still needs verification.

@@ -1,98 +1,77 @@
-# GobbleGobble product and delivery contract
+# Product requirements
 
-The goal is a complete, high-quality application. On 2026-10-24 the user removed legal clearance as a project completion gate. Google reviews remain mandatory and primary, using the demonstrated anonymous route. Wikivoyage is excluded. Attribution, privacy, explicit retention decisions and all technical quality gates remain required.
-
-This document records the agreed first version for GG-001.01. It describes required behavior, not capabilities already available. GG-001.01 is implemented, awaiting section verification at GG-003. Application delivery requires the real-browser acceptance walkthrough at GG-025.
+GobbleGobble is being built to help people choose where to eat now. This document defines the intended first version. The current repository contains a frontend shell, durable-run infrastructure and bounded provider probes. The complete dining journey and real recommendation publication are not yet available. See the [README](../README.md) for the current entry points.
 
 ## Purpose
 
-GobbleGobble helps someone decide where to eat now, why a place is worth visiting, and what food to get there. It discovers and compares meal-serving places near the person's current location or another chosen location. Scope is worldwide, without a country whitelist. Uneven source coverage must remain visible rather than become a claim of worldwide completeness.
+The app helps someone choose a place, understand why it is worth visiting and decide what food to get. It compares meal-serving places near the person's current location or another chosen location. It has no country whitelist. Uneven source coverage must remain visible rather than become a claim of worldwide completeness.
 
 ## Location entry
 
-The journey starts with location entry. A person can use their current location or enter another location manually. Manual entry remains available when browser location permission is declined or unavailable. A chosen Japanese location must be usable without typing Japanese characters. Research can use local-language sources and preserve local place names. English output is a starting assumption.
+The journey starts with location. A person can use their current location or enter another location manually. Manual entry remains available when browser location permission is declined or unavailable. A chosen Japanese location must be usable without typing Japanese characters. Research can use local-language sources and preserve local place names. Initial output is English.
+
+There is no general question or food-preference textbox in the normal entry flow. Location and travel controls supply the initial constraints. Researched food choices appear only after results.
 
 ## Travel limits and eating now
 
-Walking defaults to 15 minutes and allows adjustment. Driving uses a 30-minute limit. Recommendations use journey estimates for the selected mode, rather than treating distance as proof of travel time. Route-unconfirmed alternatives remain distinguishable from places confirmed within the limit. Opening and service evidence must address eating now in the selected location's local time, with uncertainty visible.
+Walking defaults to 15 minutes and allows adjustment. Driving uses a 30-minute limit. Recommendations use estimates for the selected mode rather than treating distance as proof of travel time. Route-unconfirmed alternatives remain distinct from places confirmed within the limit. Opening and meal-service evidence must address eating now in the selected location's local time, with uncertainty visible.
 
 ## Discovery
 
-Eligible places include restaurants, cafes, stalls, food courts, and takeaway outlets. Research must distinguish specific branches, venues, and individual stalls so the same option is not recommended twice. Missing menus or reviews alone do not disqualify a suitable place. New and unreviewed places remain eligible. Limited source coverage and unconfirmed availability must be distinguishable from a researched finding of no suitable matches.
+Eligible places include restaurants, cafes, stalls, food courts and takeaway outlets. Research must distinguish branches, venues and individual stalls so the same option is not recommended twice. Missing menus or reviews alone do not disqualify a place. New and unreviewed places remain eligible. Limited coverage and unconfirmed availability must remain distinct from a researched finding of no suitable matches.
 
 ## Recommendation results
 
-Results contain up to three main recommendations and two to four worthwhile runners-up. A smaller set is acceptable when the actual research explains the shortfall. Each choice explains why to go and what food to get. Inline details expose relevant food information, available prices, complaints, journey estimates, opening qualifications, and source links. Place and Maps links help the person act on a choice. The interface must distinguish completed, limited, no-match, and failed outcomes.
+Results contain up to three main recommendations and two to four worthwhile runners-up. A smaller set is acceptable when research explains the shortfall. Each choice explains why to go and what food to get. Inline details expose relevant food information, available prices, complaints, journey estimates, opening qualifications and source links. Place and Maps links help the person act. Completed, limited, no-match and failed outcomes must be distinguishable.
 
 ## Food and price claims
 
-Menus and prices are optional. An exact dish, menu item, or price must have supporting evidence. Suggested food inferred from cuisine or other place evidence must be labeled as inference. The result must not present an inferred suggestion as a confirmed menu item. Missing optional details remain explicit rather than become invented facts.
+Menus and prices are optional. An exact dish, menu item or price needs supporting evidence. Food suggested from cuisine or other place evidence must be labeled as inference. An inferred suggestion must not appear as a confirmed menu item. Missing optional details remain explicit rather than become invented facts.
 
 ## Reviews and complaints
 
-Google reviews are a primary, integral source for relevant matched places. The app normally attempts the selected anonymous Google review path, independently of its geography provider. Places with zero Google reviews remain eligible. An empty or omitted sample, no confident branch match, restricted use, or provider/access failure triggers labeled permitted fallback rather than rejection or fabricated reviews. Fallback retains its own source identity and does not silently replace working Google access. Google review display, model use, attribution and retention follow [the Google-review contract](GOOGLE_REVIEWS.md). Real primary retrieval and fallback behavior both require acceptance evidence. GG-009.01B completed early access and review-to-model feasibility assessment before provider-specific integration. If Google is not usable, report a concrete alternative/source decision or blocker before building around it; a display-only integration does not establish the intended reasoning capability.
+Google reviews are a primary source for relevant matched places. The intended path is the selected anonymous Google review adapter, independently of the geography provider. Places with zero Google reviews remain eligible. Empty or omitted samples, uncertain branch matches, restricted use and access failures need distinct outcomes and labeled permitted fallback. Fallback keeps its own source identity and does not silently replace working Google access.
 
-Mixed reviews remain eligible, with relevant complaints visible to the person choosing. Uniformly bad reviews can justify exclusion only when the evidence supports that conclusion. A small, selected, or biased negative sample alone does not establish that a place's reviews are uniformly bad. Results must state relevant sample limitations and distinguish observed complaints from a claim about all reviewers. The operational exclusion criterion remains work for GG-009 and GG-021.
+Google review display, model use, attribution and retention follow the [Google-review contract](INTEGRATIONS.md#public-review-model-input). Bounded access and review-to-model experiments do not establish a complete production integration. Both primary retrieval and fallback need end-to-end evidence before delivery.
+
+Mixed reviews remain eligible, with relevant complaints visible. Uniformly bad reviews can justify exclusion only when the evidence supports that conclusion. A small, selected or biased negative sample does not establish uniformly bad reception. Results must disclose relevant sample limits. The operational exclusion criterion and its production validation remain incomplete.
 
 ## Food refinement
 
-Food preferences appear after the initial results as a finite set of choices drawn from researched food options. Selecting a preference keeps the location and travel constraints. Refinement considers the broader researched pool, reuses usable evidence, and adds targeted research only where needed. The person can return to all options. Prior results stay understandable while refinement runs, and stale responses must not replace the active result version.
+After initial results, the app offers a finite set of food choices drawn from the research. A choice preserves location and travel constraints. Refinement considers the broader researched pool, reuses usable evidence and adds targeted research where needed. The person can return to all options. Prior results stay understandable during refinement, and stale responses must not replace the active version.
 
 ## Progress and recovery
 
-Research runs durably with visible progress. Refreshing or reconnecting must recover the same run and permitted saved results without duplicate research solely because the browser reconnected. Retry and cancel controls must reflect actual job state. Worker restart, interrupted execution, and result expiry must have understandable recovery behavior. Cancellation must stop further work and prevent later publication for that cancelled run. Saved results remain subject to source retention rules.
+Research runs durably with visible progress. Refreshing or reconnecting must recover the same run and permitted saved results without duplicate research caused by reconnection. Retry and cancel controls must reflect actual state. Worker restart, interruption and result expiry need understandable recovery. Cancellation must prevent later publication for that run. Source retention rules still apply to saved results.
 
 ## Evidence and privacy
 
-Recommendations must provide attributable sources and truthful uncertainty about food, reviews, opening, and routes. Provider access does not itself establish permission to process content with a model, retain it, derive outputs, or trace it. Factual freshness and permitted retention are separate constraints. Permission to keep an old fact does not make it current, and a fresh fact may still have restricted retention. Source restrictions apply to raw content, derived data, events, and diagnostics. Searches use anonymous local ownership, and location and research data remain scoped to that ownership. Credentials must not appear in browser output, logs, or retained evidence.
+Recommendations need attributable sources and truthful uncertainty about food, reviews, opening and routes. Access does not by itself establish permission to process content with a model, retain it, derive outputs or trace it. Freshness and retention are separate. Permission to keep an old fact does not make it current, and a fresh fact may still have restricted retention.
+
+Source restrictions apply to raw content, derived data, events and diagnostics. Searches use anonymous local ownership. Location and research data stay scoped to that owner. Credentials must not appear in browser output, logs or retained evidence.
 
 ## Interface
 
-The interface follows the light Cursor-inspired [visual reference](../design_temp/DESIGN.md). It uses the agreed parchment canvas, bone cards, ink text, restrained accents, and 4px geometry where reference examples conflict. Results, waiting states, and recovery messages must remain readable at desktop and phone widths. Location entry, controls, inline details, and source links must support keyboard use and accessible focus behavior.
+The interface uses a light parchment canvas, bone surfaces, ink text, restrained accents and 4px corners. It remains light under system dark mode. Results, waiting states and recovery messages must read well on desktop and phone widths. Controls, details and source links must support keyboard use and visible focus.
+
+Normal diners should see language about their meal and choices. Do not expose internal agent or tool names, prompts, loops, model temperature, context budgets, run identifiers, schemas, stack traces or raw exceptions. Progress should explain useful work, such as checking nearby places or comparing food options. Errors should state the effect and the next useful action. Technical diagnostics belong in separate developer tools and logs.
+
+The language requirement applies to diner-facing screens. Preserve source meaning and attribution. Technical contributor documentation can use precise engineering terms. The normal experience should keep one main task prominent and reveal details when useful, with minimal input and no scattered implementation notes.
 
 ## Quality and timing
 
-The delivery target is recommendations at least as useful as normal ChatGPT with web search under matched inputs. Comparison must use a genuine captured ChatGPT answer, with useful food detail, sources, practical accuracy, complaints, and unjustified omissions assessed. An API answer or a fabricated baseline cannot stand in for that comparison. Research has a two-to-three-minute expectation. Actual elapsed time, usage, and cost must be measured. An empty timeout response does not satisfy the target. The comparison protocol belongs to GG-001.03, and paired quality verification belongs to GG-023.
+The target is recommendations at least as useful as normal ChatGPT with web search under matched inputs. Comparison needs a genuine captured ChatGPT answer. An API answer or fabricated baseline cannot replace it. Human assessment covers food detail, sources, practical accuracy, complaints and unjustified omissions. The [comparison protocol](EVALUATION.md) defines matching and acceptance. No passing paired quality result has been established.
+
+Research has a two-to-three-minute expectation. Measure elapsed time, usage and cost. An empty timeout response does not satisfy the target.
 
 ## Local delivery
 
-The deliverable is a locally runnable application using real location and research providers and actual OpenAI calls. Its agreed stack is Python, SvelteKit, and SQLite, with an adaptive recommendation owner and a bounded research agent invoked as a tool through the actual OpenAI Agents SDK. Backend execution owns durable work. Single-host operation is a starting assumption. Test doubles and controlled jobs support development but cannot establish real-data delivery. Provider choice, permitted use, credentials, account access, and billing setup remain unresolved until their scheduled integration and feasibility tasks.
+The intended deliverable runs locally with real location and research providers and actual OpenAI calls. The stack is Python, SvelteKit and SQLite. One recommendation owner can use a bounded research agent as a tool through the OpenAI Agents SDK. Backend execution owns durable work. Single-host operation is the initial target. Controlled jobs support development but do not establish real-data delivery.
 
 ## Acceptance and handover
 
-Delivery requires the GG-025 browser walkthrough against real services, after the preceding section gates pass. The person must be able to start the app from its runbook, search from current and chosen locations, adjust walking, and search within 30 minutes by driving. They must be able to inspect recommendations and sources, refine by a researched food choice, refresh, and stop and restart the local processes. Handover includes the checked local URL, exact setup and lifecycle commands, required service configuration, measured timing and cost evidence, and known limitations. The GG-023 ChatGPT comparison must remain passing on the delivered configuration.
+Delivery requires a real-browser walkthrough against real services. A person must be able to follow the runbook, search from current and chosen locations, adjust walking and search within 30 minutes by driving. They must be able to inspect recommendations and sources, refine by a researched food choice, refresh, and stop and restart local processes. Handover needs exact setup and lifecycle commands, service configuration, measured timing and cost, known limits and a passing quality comparison on the delivered configuration.
 
 ## Exclusions and reference-project boundary
 
-This is a separate project from CartCart. Discovery, comparison, evidence, and later refinement are relevant concepts from its [README](../../CartCart/README.md). Shopping flows, products, sellers, budgets, and CartCart's fixture-default delivery are outside this contract. The first version excludes accounts, open-ended chat, future-date meal planning, and deployment. Other undecided extras remain outside the first version until explicitly agreed.
-
-## Requirement-to-paragraph mapping
-
-Each target below identifies the single contract paragraph under that heading. The requirement names match [implementation plan Appendix E](../IMPLEMENTATION_PLAN.md#appendix-e-audit-agreed-requirement-coverage). This is a scope mapping, not application verification.
-
-| Agreed requirement | Contract paragraph |
-|---|---|
-| End-to-end local app with real data, APIs, and OpenAI calls | [Local delivery](#local-delivery), [Acceptance and handover](#acceptance-and-handover) |
-| Current location and another chosen location | [Location entry](#location-entry) |
-| Worldwide scope without a geographic whitelist | [Purpose](#purpose) |
-| Eat now using appropriate local time and practical evidence | [Travel limits and eating now](#travel-limits-and-eating-now) |
-| Walking defaults to 15 minutes and is adjustable | [Travel limits and eating now](#travel-limits-and-eating-now) |
-| Driving within 30 minutes | [Travel limits and eating now](#travel-limits-and-eating-now) |
-| Restaurants, cafes, stalls, food courts, takeaway | [Discovery](#discovery) |
-| Up to three main recommendations and two to four runners, with justified smaller sets | [Recommendation results](#recommendation-results) |
-| Why to go and what food to get | [Recommendation results](#recommendation-results) |
-| Menu/price optional and food inference clearly distinguished | [Food and price claims](#food-and-price-claims) |
-| New/unreviewed places remain eligible | [Discovery](#discovery) |
-| Google reviews are a primary integral source with fallback for absent/unavailable reviews | [Reviews and complaints](#reviews-and-complaints) |
-| Mixed reviews remain eligible and complaints are shown | [Reviews and complaints](#reviews-and-complaints) |
-| Uniformly bad review exclusion respects actual sample limits | [Reviews and complaints](#reviews-and-complaints) |
-| Finite food preferences appear after results and derive from research | [Food refinement](#food-refinement) |
-| Refinement uses the broader pool and reuses research with targeted extra work | [Food refinement](#food-refinement) |
-| Quality at least as useful as normal ChatGPT with web search | [Quality and timing](#quality-and-timing) |
-| Two-to-three-minute research expectation | [Quality and timing](#quality-and-timing) |
-| Python, SvelteKit, OpenAI, and actual Agents SDK agents as tools | [Local delivery](#local-delivery) |
-| Light Cursor-inspired colors and readable desktop/mobile screens | [Interface](#interface) |
-| Durable runs, live progress, restart/retry/cancel, and consistent versions | [Progress and recovery](#progress-and-recovery), [Food refinement](#food-refinement) |
-| Source attribution, truthful uncertainty, retention, and no secret leakage | [Evidence and privacy](#evidence-and-privacy) |
-| Separate project and no silent CartCart feature inheritance | [Exclusions and reference-project boundary](#exclusions-and-reference-project-boundary) |
-| Future-date planning and other undecided extras stay outside version one | [Exclusions and reference-project boundary](#exclusions-and-reference-project-boundary) |
+GobbleGobble is a separate project. Discovery, comparison, evidence and refinement are relevant concepts from its reference application, CartCart. Shopping products, sellers, budgets and shopping-intake forms are outside this product. The first version also excludes accounts, open-ended chat, future-date meal planning and deployment.

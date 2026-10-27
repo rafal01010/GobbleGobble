@@ -2,7 +2,7 @@
 
 ## Google Maps review scraper
 
-`apps/backend/app/providers/google_reviews.py` adapts the anonymous request layout and review field extraction from `google-maps-review-scraper` version 3.1.0 by Yasoga Nanayakkarawasam. The published package was inspected locally. Its identity is recorded in `data/verification/GG-009.01B/attempt-08/package-manifest.json`.
+`apps/backend/app/providers/google_reviews.py` adapts the anonymous request layout and review field extraction from `google-maps-review-scraper` version 3.1.0 by Yasoga Nanayakkarawasam. The adapter uses that published package as protocol and parser reference material.
 
 The upstream repository is [YasogaN/google-maps-review-scraper](https://github.com/YasogaN/google-maps-review-scraper). The software license below covers the upstream software. It does not grant rights to Google or reviewer content.
 
