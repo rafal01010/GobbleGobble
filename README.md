@@ -4,9 +4,9 @@ GobbleGobble is a local app being built to help you choose where to eat now. The
 
 ## Current state
 
-The repository contains a light interface preview and backend foundations for admitting work, saving progress and streaming updates. It also includes a controlled worker for testing that lifecycle and bounded research probes for development.
+The repository contains a light interface preview and backend foundations for admitting work, saving progress and streaming updates. It also includes a separate diagnostic observer, a controlled worker for testing that lifecycle, and bounded research probes for development.
 
-The complete restaurant-search journey is not connected yet. The interface does not submit searches or display food recommendations. Production research, results, refinement and recovery are still under development. The frontend has had a scoped browser preview; the complete local stack has not passed its integration checks.
+The local foundation has been exercised through controlled browser jobs, event replay and process restart. The restaurant-search journey is not connected yet. The main page does not submit searches or display food recommendations. Production research, results, refinement and user retry/cancellation are still under development.
 
 ## Try the interface
 
@@ -22,7 +22,7 @@ npm run dev
 
 Open [the local preview](http://127.0.0.1:5173/). It runs without the backend, a database or provider credentials. The preview shows the visual direction only. Stop the foreground server with Ctrl+C.
 
-See [local setup](docs/SETUP.md) for frontend and backend commands, and [architecture](docs/ARCHITECTURE.md#frontend-design) for the interface design.
+See [local setup](docs/SETUP.md#start-the-local-foundation) for the combined local commands and diagnostic observer, and [architecture](docs/ARCHITECTURE.md#frontend-design) for the interface design.
 
 ## Work on the backend
 

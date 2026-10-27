@@ -2,7 +2,7 @@
 
 The API currently bootstraps anonymous sessions, admits queued runs, reads their state and streams committed events. It does not yet resolve locations through HTTP, execute production research, publish recommendation versions or expose refinement/retry/cancel routes. A [controlled worker](SETUP.md#run-a-diagnostic-job) advances an explicitly selected run without food research.
 
-[application.py](../apps/backend/app/api/application.py) owns routes and the HTTP boundary. The Pydantic [domain models](DOMAIN.md) are authoritative payload definitions. The complete HTTP/database/worker flow still needs integrated runtime verification; the examples below are contracts, not observed restaurant searches.
+[application.py](../apps/backend/app/api/application.py) owns routes and the HTTP boundary. The Pydantic [domain models](DOMAIN.md) are authoritative payload definitions. The diagnostic HTTP/database/worker flow has been exercised through the local frontend proxy. The examples below describe contracts, not restaurant searches.
 
 ## Implemented HTTP operations
 
@@ -15,6 +15,12 @@ Start the API using [local setup](SETUP.md#start-the-api). App construction and 
 | `POST /api/runs` | 202 `CommandResponse` | Commits queued admission or replays the current durable snapshot without waiting for research. |
 | `GET /api/searches/{search_id}/runs/{run_id}` | 200 `RunReadResponse` | Authorizes the search and selects the run by both IDs. Recommendations are not stored yet. |
 | `GET /api/searches/{search_id}/runs/{run_id}/events` | 200 `text/event-stream`, or 204 when terminal and caught up | Replays after a sequence, then follows newly committed events. |
+
+## Frontend connection
+
+The frontend uses same-origin `/api` paths. Its [proxy](../apps/frontend/src/routes/api/%5B...path%5D/+server.ts) forwards requests to `http://127.0.0.1:8000` in both development and the Node build. The proxy forwards the session cookie, browser origin and event cursor, and streams the response body. The backend must trust the browser's frontend origin. Configure additional origins with `GG_TRUSTED_FRONTEND_ORIGINS` as described in [settings](SETTINGS.md).
+
+The [client](../apps/frontend/src/api/client.ts) bootstraps a session before other requests, starts and reads runs, and opens a credentialed `EventSource`. Responses are `unknown` until a consumer validates them. Close the event source after a terminal event. The separate [diagnostic observer](SETUP.md#observe-a-diagnostic-run) uses the client. The visual preview does not use it.
 
 ## Sessions and errors
 
@@ -134,6 +140,15 @@ The module writes deterministic OpenAPI 3.1.0 JSON to stdout and exits zero on s
 
 [operations.py](../apps/backend/app/schemas/operations.py) also defines location resolution, finite food-choice/all-options, retry and cancellation payloads. Their presence in the export does not mean routes exist. [Domain validation](DOMAIN.md) describes outcome/result identities, branch support, choice lineage and strict nullable fields.
 
-Frontend API type generation is not implemented yet. It must consume this canonical export, including event types, instead of maintaining handwritten parallel wire interfaces. JSON Schema and TypeScript cannot replace the backend's relationship validators.
+## Generate frontend types
 
-Actual cookie/CORS behavior, cross-owner isolation, stream delivery/disconnect, rollback, concurrency and restart still need integrated verification. No complete application or live recommendation success follows from export, model parsing or the illustrative payloads above.
+The frontend imports route and event types from [types.ts](../apps/frontend/src/api/types.ts), which refers to the generated [contract](../apps/frontend/src/api/contract.d.ts). To regenerate it, initialize the backend and install the generator's separately locked dependencies. From `apps/frontend`, run:
+
+```sh
+npm ci --prefix tools/contract
+npm run generate:api
+```
+
+The command exports the current backend OpenAPI and runs the pinned `openapi-typescript` generator. It replaces the generated file only after both steps succeed. Run it after changing backend routes or models. The generator uses a separate package because its TypeScript peer requirement differs from the frontend compiler. JSON Schema and TypeScript cannot replace the backend's relationship validators or validate network data at runtime.
+
+The [foundation checks](SETUP.md#verify-the-local-foundation) exercise controlled admission, access isolation, event delivery/replay and process restart. Backend tests also cover lease races and transaction rollback. These checks do not establish production research, result publication or the normal dining journey.

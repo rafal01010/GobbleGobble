@@ -5,6 +5,7 @@ PSTACK*
 data/verification/
 data/runtime/
 /apps/frontend/node_modules/
+/apps/frontend/tools/contract/node_modules/
 /apps/frontend/.svelte-kit/
 /apps/frontend/.vite/
 /apps/frontend/build/

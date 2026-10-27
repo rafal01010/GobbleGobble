@@ -463,15 +463,17 @@ class EvidenceCollection(_Model):
         for item in self.evidence:
             subjects(item.subject_place_ids)
             attributions(item.attribution_ids)
-            source = sources.get(item.source_id)
-            if source is None:
+            evidence_source = sources.get(item.source_id)
+            if evidence_source is None:
                 raise ValueError("unknown evidence source")
-            if not set(item.subject_place_ids) <= set(source.subject_place_ids):
+            if not set(item.subject_place_ids) <= set(
+                evidence_source.subject_place_ids
+            ):
                 raise ValueError("evidence subjects exceed source scope")
-            if isinstance(source.origin, GoogleOrigin):
+            if isinstance(evidence_source.origin, GoogleOrigin):
                 if item.locator.kind == "document":
                     raise ValueError("Google evidence requires a Google locator")
-                if item.locator.branch != source.origin.branch:
+                if item.locator.branch != evidence_source.origin.branch:
                     raise ValueError(
                         "Google evidence branch differs from source branch"
                     )

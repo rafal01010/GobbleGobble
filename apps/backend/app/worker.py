@@ -191,7 +191,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     except MigrationError:
         print("diagnostic_schema_error", file=sys.stderr)
         return 1
-    except (sqlite3.Error, OSError):
+    except sqlite3.Error, OSError:
         print("diagnostic_storage_error", file=sys.stderr)
         return 1
     except KeyboardInterrupt:

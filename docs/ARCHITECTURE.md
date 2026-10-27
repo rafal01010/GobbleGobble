@@ -6,7 +6,7 @@ GobbleGobble uses a Python backend, SvelteKit frontend and SQLite on one local h
 
 | Source | Responsibility |
 |---|---|
-| `apps/frontend/src/` | Browser presentation. Currently a stateless light shell with a native preview disclosure. |
+| `apps/frontend/src/` | Light preview shell, same-origin API client/proxy and separate diagnostic run observer. |
 | `apps/backend/app/api/` | Anonymous session bootstrap, admission, paired status reads and event streaming. |
 | `apps/backend/app/schemas/` | Authoritative request, evidence, recommendation and lifecycle models. |
 | `apps/backend/app/db/` | Migrations, ownership, command identity, leases, checkpoints and events. |
@@ -31,7 +31,7 @@ The owner supplies comparative judgment rather than an arbitrary fixed scoring p
 
 ## Frontend design
 
-The shared stylesheet [app.css](../apps/frontend/src/app.css) owns parchment `#f7f7f4`, bone `#f2f1ed`, stone `#cdcdc9`, ink `#26251e`, 4px corners and 4px-based spacing. It declares a light color scheme and uses installed/system font fallbacks. The root layout receives generated `LayoutProps.children` and imports the stylesheet once. No API client or application state is wired yet.
+The shared stylesheet [app.css](../apps/frontend/src/app.css) owns parchment `#f7f7f4`, bone `#f2f1ed`, stone `#cdcdc9`, ink `#26251e`, 4px corners and 4px-based spacing. It declares a light color scheme and uses installed/system font fallbacks. The root layout receives generated `LayoutProps.children` and imports the stylesheet once. The frontend has a same-origin API proxy and client. A separate diagnostic observer uses them to show a controlled run. The visual preview does not use them.
 
 Keep one main task prominent and reveal details when needed. Normal screens use ordinary food, travel, uncertainty and recovery language. Engineering terminology belongs in contributor references and separate diagnostics. There is no generic question textbox. Current/manual location controls retain their intended role. See [product requirements](PRODUCT.md) and [setup](SETUP.md).
 

@@ -94,7 +94,7 @@ def _canonical_receipt(receipt: Receipt) -> str:
             ensure_ascii=True,
             allow_nan=False,
         )
-    except (ValidationError, ValueError, TypeError):
+    except ValidationError, ValueError, TypeError:
         raise ValueError("invalid_receipt") from None
 
 
@@ -115,7 +115,7 @@ def _prepare_batch(
             if type(record) is not ContributionRecord:
                 raise ValueError
             record = ContributionRecord.model_validate(record)
-        except (ValidationError, ValueError):
+        except ValidationError, ValueError:
             raise ValueError("invalid_contribution") from None
         previous = contribution_records.setdefault(record.contribution_id, record)
         if previous != record:
@@ -183,7 +183,7 @@ def _decode_receipt(row: sqlite3.Row) -> Receipt:
             str(receipt.local_request_id) == row["local_request_id"]
             and _canonical_receipt(receipt) == row["safe_record_json"]
         )
-    except (ValidationError, ValueError, TypeError):
+    except ValidationError, ValueError, TypeError:
         valid = False
     if not valid:
         raise sqlite3.DatabaseError("invalid_stored_receipt")
@@ -209,7 +209,7 @@ def _decode_contribution(
             or tuple(str(value) for value in record.receipt_ids) != receipt_ids
         ):
             raise ValueError
-    except (ValidationError, ValueError, TypeError):
+    except ValidationError, ValueError, TypeError:
         raise sqlite3.DatabaseError("invalid_stored_contribution") from None
     return record
 
