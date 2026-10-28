@@ -22,11 +22,86 @@ Models are strict and frozen, reject extra fields and hide input values in forma
 
 A `SearchRequest` preserves current versus chosen origin, a resolved location, travel limits and an aware `eat_now_at` instant. Locations carry bounded finite coordinates, a valid IANA timezone and optional display/provider references. Latitude is within ±90 and longitude within ±180. The location's timezone supplies local dining context; server time does not. Schema validation cannot establish that a timezone matches coordinates or that an instant is current.
 
+[Location resolution](../apps/backend/app/location.py) maps Geoapify building and amenity results with valid time zones to specific origins. It preserves multiple matches as typed choices. Administrative areas, streets, unknown result types and missing time zones produce refinement choices with no search origin. A user can select a point choice by passing its origin to the start contract. Current coordinates and comma-separated chosen coordinates keep their exact points during reverse lookup. Provider-supplied time zone accuracy and coverage have not yet been verified live.
+
 Walking defaults to 15 minutes and accepts positive integer minutes. Driving uses exactly 30 integer minutes. Booleans, numeric strings and floating point limits are invalid. There is no country whitelist or schema-imposed maximum walking limit.
 
-Each `Place` identifies one branch, venue or stall within a search. A stall can name a containing venue while retaining its own ID. A chain name is not branch identity. Provider identifiers remain external references, not internal place IDs. Normalization must still perform matching, deduplication and parent-reference checks.
+Each `Place` identifies one branch, venue or stall within a search. A stall can name a containing venue while retaining its own ID. A chain name is not branch identity. Provider identifiers remain external references, not internal place IDs.
+
+[Outlet reconciliation](../apps/backend/app/identity.py) accepts `IdentityLead` wrappers around original geographic or web leads. Callers assign unique local lead IDs and an explicitly assessed branch, venue or stall kind, or leave the kind unknown. Exact Geoapify IDs supply same-record matches. Other matches require an `IdentityAssertion` scoped to two supplied lead IDs, a citation-bearing `WebMealLead` and the caller's explanation. Citation presence does not establish that the source supports the assertion. The caller remains responsible for that assessment. Names, addresses, coordinates and shared citation URLs never create matches.
+
+`reconcile_outlets` returns ephemeral groups with the original observations and assertions intact. A transitive group with conflicting kinds, explicit distinct-place evidence or different parent claims stays separate. Explicit containment retains a branch or stall's own identity and requires an explicitly identified venue parent. Conflicting or unknown containment remains unresolved. Local `identity_` IDs identify only this result and depend on input order. These groups are not `Place` records, do not infer time zones or practical facts, and do not authorize source retention. Admitted-search and recommendation integration remain incomplete.
 
 Unknown journey/opening facts assert no duration or open/closed conclusion. An estimated journey has mode and finite nonnegative duration, but eligibility still requires comparison with the request. An assessed opening separates venue opening from meal service. An open venue need not be serving food. None of these shapes proves source support or freshness.
+
+## Route evidence and travel limits
+
+[`JourneyQualifier`](../apps/backend/app/journey.py) calls the configured Geoapify routing client with the exact request origin and selected walking or driving mode. The caller supplies an endpoint and its local `identity_id`. The result retains that association, the chosen constraint and the exact endpoint. It does not choose between reconciled lead locations, infer a web lead's coordinates or transfer a venue route to a contained stall. The caller must establish that the endpoint belongs to that outlet.
+
+A `JourneyEstimate` retains the actual `RouteAvailable`, its provider datasource and Geoapify/OpenStreetMap credits, the shared call receipt and an `EstimatedJourney` fact. `within_limit` compares provider seconds with the selected minutes multiplied by 60. Equality qualifies for this comparison. Over-limit estimates remain available with `within_limit=False`. This comparison establishes only the route-duration criterion, not eat-now eligibility or an arrival guarantee.
+
+`observed_at` is the UTC instant when the service receives the parsed outcome. `receipt.started_at` is the separate request-start time. Neither is a provider measurement timestamp or the dining instant. Driving uses the provider's free-flow estimate without live traffic, parking or time to reach a vehicle. Walking pace, access and conditions can change actual travel time. Freshness expiry and reacquisition are not implemented here.
+
+`JourneyUnavailable` retains the selected mode and limit, observation time and an unknown journey with no duration. Its reason distinguishes an empty provider route, a stopped call and unconfigured routing. Stopped calls retain their receipt and its diagnostic, including exhaustion of the shared allowance. Unconfigured routing has no provider observation or receipt; its timestamp records when the local configuration gap was observed. No unavailable result asserts that a place is within the limit or that no nearby places exist. No straight-line distance becomes a journey duration.
+
+The following examples are synthetic outcomes. The focused checks in [`test_journey.py`](../apps/backend/tests/test_journey.py) execute the actual provider client with an HTTP mock and compare literal metrics, routing parameters, source attribution and limit outcomes. Observation timestamps come from the local clock and are checked against the request start and test interval. These checks do not establish current provider access or route quality.
+
+| Mode and selected limit | Provider response | Local outcome |
+|---|---|---|
+| Walk, 15 minutes | 900 seconds, 987.25 metres | Estimated, `within_limit=True`, `no_live_traffic` basis. |
+| Walk, 15 minutes | 900.1 seconds, 987.25 metres | Estimated, `within_limit=False`. |
+| Walk, 5 minutes | 301 seconds, 987.25 metres | Estimated, `within_limit=False`. |
+| Drive, 30 minutes | 1800 seconds, 987.25 metres | Estimated, `within_limit=True`, driving limitations retained. |
+| Drive, 30 minutes | 1800.1 seconds, 987.25 metres | Estimated, `within_limit=False`. |
+| Drive, 30 minutes | Empty route list | Unknown, `provider_returned_no_routes`, successful call receipt retained. |
+| Drive, 30 minutes | Malformed response or HTTP 503 | Unknown, `provider_stopped`, failure receipt retained. |
+
+For example, a walking request started at `2026-10-28T04:00:00Z` whose 900-second response was received locally at `2026-10-28T04:00:01Z` has `observed_at=2026-10-28T04:00:01Z`. The two timestamps and duration describe different facts. This is an illustrative timestamp example, not a recorded provider observation.
+
+## Opening and meal-service periods
+
+[`assess_opening`](../apps/backend/app/opening.py) evaluates caller-interpreted `HoursEvidence` against the original `eat_now_at` instant and estimated arrival. The caller supplies the exact destination's IANA timezone, place ID and journey fact. The service does not infer a destination timezone from the origin or establish that the supplied journey belongs to that outlet. Arrival adds elapsed route seconds in UTC before conversion to destination local time. An unknown journey has no estimated arrival.
+
+Each schedule separates venue opening from meal service and retains its supporting evidence IDs. Every referenced evidence record must exist in the supplied `EvidenceCollection` and cover the assessed place. Shared sources and parent venues do not transfer support to a branch or stall. The caller must establish that the cited statement supports the interpreted periods, complete coverage, local-date applicability and exceptions. This service does not parse source prose, verify source truth, grant use permission or acquire hours. It retains ephemeral assertions rather than publishing recommendations.
+
+Weekly periods use Monday `0` through Sunday `6` and integer minutes after midnight. A smaller end minute means the next day. Starts are inclusive and ends exclusive. `0` to `1440` explicitly means all day, while equal endpoints are rejected as ambiguous. Date exceptions replace periods starting on that date, including an empty tuple for no starts. A previous day's overnight period can still continue into that date. A `complete` schedule permits a closed or not-serving conclusion outside its periods. A `partial` schedule supports only positive matches. Inclusive `valid_from` and `valid_through` dates scope each evaluated local date. Callers must restrict those dates or supply exceptions when holidays or seasonal hours are uncertain.
+
+The result preserves separate opening and meal-service facts at each instant. `availability` is `available` only when both facts are positive now and at arrival. A closed or not-serving fact at either instant yields `unavailable`, including a place that opens during the journey. Missing, conflicting, expired or inapplicable hours stay unknown. An explicit evidence `fresh_until` is exclusive and checked at each target instant. Missing expiry remains an explicit qualification, rather than proof of freshness. Retrieval after the request instant is allowed because research normally follows a request. Neither retrieval time nor this evaluation proves historical opening state.
+
+Period boundaries resolve through the destination timezone to UTC with a roundtrip check. Unambiguous periods spanning a clock change cover the actual elapsed interval. A missing spring-forward boundary or a repeated fall-back boundary leaves that period uncertain because the source did not choose an instant. The service does not invent a DST convention. Availability covers only the two assessed instants, not uninterrupted service between them, seating, last orders or time to finish a meal.
+
+The focused cases in [`test_opening.py`](../apps/backend/tests/test_opening.py) exercise the actual evaluator with synthetic evidence. No live hours or provider coverage are established.
+
+| Supplied local hours and assessment | Synthetic outcome |
+|---|---|
+| Manila daily 09:00 to 22:00, request `2026-10-28T04:00:00Z`, 900-second journey | Now 12:00 and arrival 12:15 at `+08:00`. Opening and meal service separately qualify when both schedules are supplied. |
+| Same instant and destination New York | Now 00:00 at `-04:00`. Complete 09:00 to 22:00 opening hours establish closed. |
+| Manila opening until 22:00, meal service until 21:55, now 21:45 with 900-second journey | Arrival at 22:00 is closed and not serving. Availability is unavailable. |
+| Sunday 22:00 to Monday 02:00, now Monday 01:50 with 600-second journey | Open now and closed at the exclusive 02:00 arrival boundary. |
+| New York `2026-03-08T06:50:00Z` plus 1,200 seconds, period 00:00 to 04:00 | Arrival is 03:10 at `-04:00`, after the spring clock jump. |
+| New York `2026-11-01T05:50:00Z` plus 1,200 seconds, period 00:00 to 04:00 | Arrival is the second 01:10 at `-05:00`, after the fall clock change. |
+| Missing hours, partial hours outside known periods, or a 01:00 to 01:30 boundary on the New York fall-back date | Unknown opening, with no available conclusion. |
+
+## Candidate assembly and practical qualification
+
+[`assemble_candidates`](../apps/backend/app/candidates.py) combines an original `SearchRequest`, `IdentityReconciliation`, explicit `CandidateBinding` records and an `EvidenceCollection`. A binding associates one reconciled outlet identity with one resolved `Place`, an optional journey assessment and source-linked local hours. This mapping is a caller assessment. It does not independently establish source truth or identify a web lead.
+
+Bindings must have unique known identity IDs and unique place IDs within the supplied evidence catalog. The place kind must match the reconciled outlet kind. Parent identities must have their own binding, and their place IDs must match the child's `parent_place_id`. Provider-backed locations must match an observed lead point, and supplied Geoapify references must belong to that outlet. A provider endpoint from another outlet is rejected even when coordinates coincide. Point-only endpoints require the explicitly bound coordinates. Web-only resolved places depend on the caller's declared location association.
+
+Journey checks compare the bound identity, original origin coordinates, travel mode and limit, destination coordinates, and the route's mode, duration, distance and estimate basis. The assembler retains the original route assessment, receipt and provenance. It computes opening and meal service itself from the matched journey, original dining instant, exact place timezone and scoped schedules. A stale or different non-unknown journey or opening fact already on the supplied `Place` is rejected. The projected place has the assembled journey and opening-now fact, while `CandidateView.opening` retains both now and arrival facts and their source-linked schedules.
+
+The result separates `qualified`, `unconfirmed` and `excluded` tuples. Input order is preserved within each group. Each view retains an independent `travel` state and reason codes.
+
+| Practical facts | Candidate outcome |
+|---|---|
+| Route estimate at or below the selected limit, open and serving now and at arrival, no identity conflict | `qualified` with `travel=within_limit`. |
+| Verified route, missing or uncertain service information | `unconfirmed` with `travel=within_limit` and `service_unconfirmed`. |
+| Unavailable or absent route, no known closure or service exclusion | `unconfirmed` with `travel=unconfirmed` and `route_unconfirmed`. No arrival is invented. |
+| Known over-limit route | `excluded` with `over_travel_limit`. |
+| Known closed or not serving now or at arrival | `excluded`, including when the route is unavailable. The reason names the fact and instant. |
+| Conflicting or unresolved identity assertions affecting the outlet | `unconfirmed` with `identity_unconfirmed`, unless a known practical exclusion already requires `excluded`. |
+
+The result retains the complete supplied identity reconciliation and evidence catalog, including source declarations, qualifications and unknown facts. Outlets without bindings remain in `unresolved_outlets`, including web-only leads without resolved locations or kinds. Empty groups establish no coverage claim. These ephemeral views support further research. They do not create researched snapshots, rank food quality, publish recommendations, grant source-use permission or establish live provider coverage. The focused synthetic checks in [`test_candidates.py`](../apps/backend/tests/test_candidates.py) exercise assembly without external calls.
 
 ## Evidence and branch attribution
 
@@ -49,6 +124,12 @@ The model distinguishes matched accessible evidence, confirmed zero reviews, no 
 Google findings must cite assessed evidence from the declared primary sample and branch. Independent review fallback has its own sample; independent food fallback has its own evidence list. Both retain source identity and a reason consistent with the Google outcome. Fallback evidence cannot masquerade as Google reviews or cite another branch's sample.
 
 Source declarations separately govern access, display, model input, derived output and tracing. Raw content, derived content and identifiers have distinct retention decisions. Retention permission is not factual freshness. These records do not schedule deletion, test the current clock or grant rights because a model supplied them. Follow [integration and source-use policy](INTEGRATIONS.md).
+
+### Stored evidence lookup
+
+[`store_evidence`](../apps/backend/app/db/evidence.py) accepts a validated collection, an owned search and a trusted source-class decision for each source. For admitted independent sources, it stores evidence and findings only when raw content, derived content and identifiers all have indefinite retention and derived output is allowed. Unknown and time-limited content is skipped because scheduled deletion is not implemented. Source classification and subject associations are upstream assertions; the store cannot prove their truth or detect copied restricted content.
+
+For Google sources, the store retains only permitted numeric CIDs or feature IDs with their place association. It does not store review text, author details, source URLs or dependent findings. A Google place ID alone is not retained. [`lookup_evidence`](../apps/backend/app/db/evidence.py) returns source context for the requested place and returns evidence and findings only for their explicitly associated subjects. A shared page does not transfer one branch's menu or complaint to another branch. Restricted content must be reacquired when needed. The store is not yet connected to production research.
 
 The production review requirement permits relevant public text and attribution, including complaints, personal references and local languages. The legacy probe's restrictive minimizer is not that production policy. Retrieval/admission/fallback integration remains incomplete.
 

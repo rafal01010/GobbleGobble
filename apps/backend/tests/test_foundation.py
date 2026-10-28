@@ -156,7 +156,7 @@ def test_migrations_create_durable_storage_and_rerun_without_changes(
     tmp_path: Path,
 ) -> None:
     settings = DatabaseSettings(database_path=tmp_path / "empty" / "foundation.db")
-    assert migrate(settings) == (1, 2, 3, 4, 5)
+    assert migrate(settings) == (1, 2, 3, 4, 5, 6)
     with session(settings) as opened, transaction(opened):
         credential = issue_session(opened).credential
     assert migrate(settings) == ()
@@ -181,7 +181,7 @@ def test_migrations_reject_tampered_history_without_applying_changes(
     with pytest.raises(MigrationError, match="history_mismatch"):
         migrate(database)
     assert (
-        connection.execute("SELECT count(*) FROM schema_migrations").fetchone()[0] == 5
+        connection.execute("SELECT count(*) FROM schema_migrations").fetchone()[0] == 6
     )
     assert (
         connection.execute(
@@ -201,14 +201,14 @@ def test_simultaneous_migrations_apply_the_manifest_once(tmp_path: Path) -> None
 
     with ThreadPoolExecutor(max_workers=2) as pool:
         results = list(pool.map(upgrade, (1, 2)))
-    assert sorted(results) == [(), (1, 2, 3, 4, 5)]
+    assert sorted(results) == [(), (1, 2, 3, 4, 5, 6)]
     with session(settings) as opened:
         assert [
             row["version"]
             for row in opened.execute(
                 "SELECT version FROM schema_migrations ORDER BY version"
             ).fetchall()
-        ] == [1, 2, 3, 4, 5]
+        ] == [1, 2, 3, 4, 5, 6]
     assert migrate(settings) == ()
 
 
@@ -220,7 +220,7 @@ def test_version_one_database_upgrades_and_admits_a_queued_run(
     monkeypatch.setattr(migrations, "MIGRATIONS", manifest[:1])
     assert migrate(settings) == (1,)
     monkeypatch.setattr(migrations, "MIGRATIONS", manifest)
-    assert migrate(settings) == (2, 3, 4, 5)
+    assert migrate(settings) == (2, 3, 4, 5, 6)
     with session(settings) as opened, transaction(opened):
         credential = issue_session(opened).credential
         response = admit_start(opened, credential, command)
@@ -246,7 +246,7 @@ def test_failed_migration_rolls_back_schema_and_ledger(
         migrations.MIGRATIONS
         + (
             Migration(
-                6,
+                7,
                 "controlled_failure",
                 ("CREATE TABLE partial (id TEXT)", "INVALID SQL"),
             ),
@@ -255,7 +255,7 @@ def test_failed_migration_rolls_back_schema_and_ledger(
     with pytest.raises(sqlite3.OperationalError, match="syntax error"):
         migrate(database)
     assert (
-        connection.execute("SELECT count(*) FROM schema_migrations").fetchone()[0] == 5
+        connection.execute("SELECT count(*) FROM schema_migrations").fetchone()[0] == 6
     )
     assert (
         connection.execute(
@@ -291,7 +291,7 @@ def test_populated_upgrade_accepts_zero_cursor_and_rejects_missing_history(
             (snapshot.run_id, snapshot.search_id, snapshot.model_dump_json()),
         )
     monkeypatch.setattr(migrations, "MIGRATIONS", manifest)
-    assert migrate(settings) == (5,)
+    assert migrate(settings) == (5, 6)
     with session(settings) as opened:
         if cursor:
             with (

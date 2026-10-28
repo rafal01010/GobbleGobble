@@ -175,6 +175,19 @@ MIGRATIONS: tuple[Migration, ...] = (
             ),
         ),
     ),
+    Migration(
+        version=6,
+        name="create_search_evidence",
+        statements=(
+            "CREATE TABLE evidence_sources (search_id TEXT NOT NULL REFERENCES search_ownership(search_id), source_id TEXT NOT NULL, kind TEXT NOT NULL CHECK(kind IN ('independent','google')), metadata_json TEXT NOT NULL, PRIMARY KEY(search_id, source_id))",
+            "CREATE TABLE evidence_source_subjects (search_id TEXT NOT NULL, source_id TEXT NOT NULL, place_id TEXT NOT NULL, PRIMARY KEY(search_id, source_id, place_id), FOREIGN KEY(search_id, source_id) REFERENCES evidence_sources(search_id, source_id))",
+            "CREATE TABLE evidence_items (search_id TEXT NOT NULL, evidence_id TEXT NOT NULL, source_id TEXT NOT NULL, content_json TEXT NOT NULL, PRIMARY KEY(search_id, evidence_id), FOREIGN KEY(search_id, source_id) REFERENCES evidence_sources(search_id, source_id))",
+            "CREATE TABLE evidence_subjects (search_id TEXT NOT NULL, evidence_id TEXT NOT NULL, place_id TEXT NOT NULL, PRIMARY KEY(search_id, evidence_id, place_id), FOREIGN KEY(search_id, evidence_id) REFERENCES evidence_items(search_id, evidence_id))",
+            "CREATE INDEX evidence_subject_lookup_idx ON evidence_subjects(search_id, place_id, evidence_id)",
+            "CREATE TABLE evidence_findings (search_id TEXT NOT NULL REFERENCES search_ownership(search_id), finding_id TEXT NOT NULL, content_json TEXT NOT NULL, PRIMARY KEY(search_id, finding_id))",
+            "CREATE TABLE evidence_finding_support (search_id TEXT NOT NULL, finding_id TEXT NOT NULL, place_id TEXT NOT NULL, evidence_id TEXT NOT NULL, PRIMARY KEY(search_id, finding_id, place_id, evidence_id), FOREIGN KEY(search_id, finding_id) REFERENCES evidence_findings(search_id, finding_id), FOREIGN KEY(search_id, evidence_id, place_id) REFERENCES evidence_subjects(search_id, evidence_id, place_id))",
+        ),
+    ),
 )
 
 

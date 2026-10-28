@@ -10,8 +10,17 @@ GobbleGobble uses a Python backend, SvelteKit frontend and SQLite on one local h
 | `apps/backend/app/api/` | Anonymous session bootstrap, admission, paired status reads and event streaming. |
 | `apps/backend/app/schemas/` | Authoritative request, evidence, recommendation and lifecycle models. |
 | `apps/backend/app/db/` | Migrations, ownership, command identity, leases, checkpoints and events. |
+| `apps/backend/app/db/evidence.py` | Search-scoped storage and place-scoped lookup of permitted evidence and Google branch reacquisition identifiers. |
 | `apps/backend/app/worker.py` | Shared leased runner and explicitly selected diagnostic job. |
 | `apps/backend/app/providers/` | Geographic, web-research and anonymous Google review clients. |
+| `apps/backend/app/discovery.py` | Bounded geographic meal-lead collection, exact-ID deduplication and explicit continuation receipts. Not connected to admitted searches yet. |
+| `apps/backend/app/web_discovery.py` | Bounded supplemental web query guidance and citation-scoped lead mapping. Preserves uncertainty without creating place identities or researched candidates. Not connected to admitted searches yet. |
+| `apps/backend/app/candidates.py` | Pure candidate assembly with explicit identity/place bindings, request-scoped route checks and opening reassessment. Separates qualified, unconfirmed and excluded options while retaining unresolved outlets and source context. Not connected to admitted searches yet. |
+| `apps/backend/app/identity.py` | Ephemeral outlet groups from exact provider IDs and explicit cited identity assertions. Preserves conflicting matches, separate branches and venue containment. Not connected to admitted searches yet. |
+| `apps/backend/app/journey.py` | Mode-specific route evidence for an explicitly associated outlet, observation time and comparison with the original travel limit. Preserves unavailable outcomes. Not connected to admitted searches yet. |
+| `apps/backend/app/opening.py` | Source-linked local opening and meal-service periods at eat-now and estimated arrival. Preserves missing, conflicting and DST-ambiguous facts. Not connected to admitted searches yet. |
+| `apps/backend/app/review_research.py` | Looks up Google branch candidates, matches them to a place and prepares bounded review batches. Not connected to admitted searches yet. |
+| `apps/backend/app/review_selection.py` | Tries Google reviews first and selects bounded independent web fallback using caller-vetted domains. |
 | `apps/backend/app/agents/probe.py` | Bounded Agents SDK owner/research experiment. |
 | `apps/backend/app/core/` | Configuration, request bounds and safe receipts. |
 

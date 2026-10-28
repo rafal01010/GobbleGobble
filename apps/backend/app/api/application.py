@@ -5,7 +5,7 @@ import logging
 import sqlite3
 from typing import Annotated, Any, Literal
 
-from fastapi import Cookie, FastAPI, Request, Security
+from fastapi import Cookie, Depends, FastAPI, Request, Security
 from fastapi.exceptions import RequestValidationError
 from fastapi.security import APIKeyCookie
 from pydantic import BaseModel, BeforeValidator, ConfigDict, ValidationError
@@ -23,11 +23,14 @@ from app.api.streaming import (
     terminal_and_caught_up,
     watch_from_wire,
 )
+from app.core.calls import AttemptCalls, Bounds
 from app.core.settings import (
     ApiSettings,
+    ConfigurationError,
     DatabaseSettings,
     load_api_settings,
     load_database_settings,
+    load_location_settings,
 )
 from app.db.migrations import MigrationError, require_current_schema
 from app.db.ownership import (
@@ -39,13 +42,18 @@ from app.db.ownership import (
 )
 from app.db.runs import CommandConflict, RunNotFound, admit_start, read_snapshot
 from app.db.session import session, transaction
+from app.location import LocationResolver
+from app.providers.geoapify import GeoapifyClient
 from app.schemas.lifecycle import RunReadResponse
 from app.schemas.operations import (
     CommandResponse,
     ErrorCode,
     ErrorResponse,
+    LocationUnavailableOutcome,
     OperationError,
     ReadRunRequest,
+    ResolveLocationRequest,
+    ResolveLocationResponse,
     StartRunRequest,
 )
 
@@ -72,6 +80,18 @@ def start_from_wire(value: object) -> StartRunRequest:
 
 
 StartBody = Annotated[StartRunRequest, BeforeValidator(start_from_wire)]
+
+
+async def location_resolver() -> LocationResolver | None:
+    try:
+        settings = load_location_settings()
+    except ConfigurationError:
+        return None
+    calls = AttemptCalls(
+        settings,
+        Bounds(max_requests=1, total_seconds=settings.geographic_timeout_seconds),
+    )
+    return LocationResolver(GeoapifyClient(calls))
 
 
 def error_response(
@@ -237,6 +257,29 @@ def create_app(
                 path="/",
             )
         return response
+
+    @app.post(
+        "/api/locations/resolve",
+        response_model=ResolveLocationResponse,
+        responses=errors,
+        operation_id="resolveLocation",
+    )
+    async def resolve_location(
+        command: ResolveLocationRequest,
+        credential: Credential,
+        resolver: Annotated[LocationResolver | None, Depends(location_resolver)],
+    ) -> ResolveLocationResponse:
+        if credential is None:
+            raise InvalidSession()
+        with session(database_settings) as connection:
+            resolve_session(connection, credential)
+        if resolver is None:
+            return ResolveLocationResponse(
+                outcome=LocationUnavailableOutcome(
+                    message="Location lookup is not configured.", retryable=False
+                )
+            )
+        return await resolver.resolve(command.location)
 
     @app.post(
         "/api/runs",

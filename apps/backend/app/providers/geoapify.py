@@ -97,6 +97,8 @@ class LocationLead:
     name: str | None = field(repr=False)
     formatted_address: str | None = field(repr=False)
     provenance: Provenance = field(repr=False)
+    result_type: str | None = field(default=None, repr=False)
+    timezone: str | None = field(default=None, repr=False)
 
 
 @dataclass(frozen=True)
@@ -181,9 +183,15 @@ class _Properties(_Wire):
         )
 
 
+class _Timezone(_Wire):
+    name: _Identifier = Field(repr=False)
+
+
 class _Location(_Properties):
     lat: _Latitude = Field(repr=False)
     lon: _Longitude = Field(repr=False)
+    result_type: str | None = Field(default=None, repr=False)
+    timezone: _Timezone | None = Field(default=None, repr=False)
 
 
 class _Geometry(_Wire):
@@ -319,6 +327,22 @@ class GeoapifyClient:
         if type(text) is not str or not text.strip() or len(text) > 500:
             raise GeoapifyInputError()
         _limit(limit, 10)
+        return await self._locations("/v1/geocode/search", {"text": text}, limit=limit)
+
+    async def reverse_location(
+        self, point: Point
+    ) -> Completed[tuple[LocationLead, ...]] | Stopped:
+        if type(point) is not Point:
+            raise GeoapifyInputError()
+        return await self._locations(
+            "/v1/geocode/reverse",
+            {"lat": str(point.latitude), "lon": str(point.longitude)},
+            limit=1,
+        )
+
+    async def _locations(
+        self, path: str, params: dict[str, str], *, limit: int
+    ) -> Completed[tuple[LocationLead, ...]] | Stopped:
         key = self._key("location")
 
         def parse(body: bytes) -> tuple[LocationLead, ...]:
@@ -330,14 +354,16 @@ class GeoapifyClient:
                     item.name,
                     item.formatted,
                     item.provenance(),
+                    item.result_type,
+                    None if item.timezone is None else item.timezone.name,
                 )
                 for item in response.results
             )
 
         async def invoke(seconds: float) -> Parsed[tuple[LocationLead, ...]]:
             return await self._get(
-                "/v1/geocode/search",
-                {"text": text, "format": "json", "limit": str(limit), "apiKey": key},
+                path,
+                params | {"format": "json", "limit": str(limit), "apiKey": key},
                 seconds,
                 parse,
             )
@@ -348,7 +374,12 @@ class GeoapifyClient:
         )
 
     async def nearby_places(
-        self, center: Point | LocationLead, *, radius_m: int, limit: int = 10
+        self,
+        center: Point | LocationLead,
+        *,
+        radius_m: int,
+        limit: int = 10,
+        offset: int = 0,
     ) -> Completed[tuple[MealPlaceLead, ...]] | Stopped:
         if type(center) is LocationLead:
             point = center.point
@@ -361,6 +392,8 @@ class GeoapifyClient:
             raise GeoapifyInputError()
         _limit(radius_m, 5000)
         _limit(limit, 20)
+        if type(offset) is not int or not 0 <= offset <= 10000:
+            raise GeoapifyInputError()
         key = self._key("discovery")
         coordinates = f"{point.longitude},{point.latitude}"
 
@@ -386,6 +419,7 @@ class GeoapifyClient:
                     "filter": f"circle:{coordinates},{radius_m}",
                     "bias": f"proximity:{coordinates}",
                     "limit": str(limit),
+                    **({"offset": str(offset)} if offset else {}),
                     "apiKey": key,
                 },
                 seconds,

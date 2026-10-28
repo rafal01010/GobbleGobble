@@ -22,6 +22,7 @@ from pydantic import (
 )
 
 from app.core.settings import ReviewSettings, Settings
+from app.core.source_policy import SourceUseDenied, require_source_use
 
 Provider = Literal[
     "geoapify",
@@ -38,6 +39,7 @@ Capability = Literal[
 Use = Literal["api_diagnostic", "model_inference"]
 InputSource = Literal[
     "geoapify_geography",
+    "public_google_reviews",
     "minimized_google_reviews",
     "ordinary_google",
     "grounding_lite",
@@ -104,9 +106,9 @@ class Bounds(_Closed):
 class CallSpec(_Closed):
     """Declare every imported input origin. An empty tuple means none.
 
-    Model input requires accurate lineage, including mixed origins. Only the
-    conservative review minimizer's output is minimized_google_reviews. Raw
-    reviews remain ordinary_google. This gate grants no storage or tracing.
+    Model input requires accurate lineage, including mixed origins. Matched public
+    reviews use public_google_reviews; other Google content uses ordinary_google.
+    This gate grants no storage or tracing.
     """
 
     capability: Capability
@@ -336,19 +338,23 @@ class AttemptCalls:
 
         if _IN_TRANSPORT.get():
             return Stopped(finish("nested_call"))
-        if (
-            (provider == "openai" or spec.use == "model_inference")
-            and any(
-                source != "geoapify_geography"
-                and not (
-                    source == "minimized_google_reviews"
-                    and provider == "openai"
-                    and spec.use == "model_inference"
-                )
-                for source in spec.input_sources
-            )
-        ) or (provider.startswith("google_") and spec.use == "model_inference"):
-            return Stopped(finish("source_blocked"))
+        if provider == "openai" or spec.use == "model_inference":
+            try:
+                require_source_use(spec.input_sources, "model")
+                if provider != "openai" and any(
+                    source in {"public_google_reviews", "minimized_google_reviews"}
+                    for source in spec.input_sources
+                ):
+                    raise SourceUseDenied("Google review model input requires OpenAI")
+                if spec.use != "model_inference" and any(
+                    source in {"public_google_reviews", "minimized_google_reviews"}
+                    for source in spec.input_sources
+                ):
+                    raise SourceUseDenied("Google review input requires inference")
+                if provider.startswith("google_") and spec.use == "model_inference":
+                    raise SourceUseDenied("Google model inference is not enabled")
+            except SourceUseDenied:
+                return Stopped(finish("source_blocked"))
         if started >= self._deadline:
             return Stopped(finish("attempt_timeout"))
         if self._remaining == 0:

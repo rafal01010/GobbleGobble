@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import field
 from typing import Annotated, ClassVar, Literal
 from urllib.parse import urlsplit
@@ -576,10 +577,28 @@ class WebResearchClient:
         return key.get_secret_value()
 
     async def search(
-        self, query: str, *, input_sources: tuple[InputSource, ...]
+        self,
+        query: str,
+        *,
+        input_sources: tuple[InputSource, ...],
+        allowed_domains: tuple[str, ...] | None = None,
     ) -> Completed[WebResult] | Stopped:
         """Return provider evidence, reported absence, or a fixed unavailable reason."""
         if type(query) is not str or not query.strip() or len(query) > 2000:
+            raise WebResearchInputError()
+        if allowed_domains is not None and (
+            not allowed_domains
+            or len(allowed_domains) > 20
+            or any(
+                type(domain) is not str
+                or len(domain) > 253
+                or not re.fullmatch(
+                    r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+",
+                    domain,
+                )
+                for domain in allowed_domains
+            )
+        ):
             raise WebResearchInputError()
         try:
             spec = CallSpec(
@@ -593,12 +612,16 @@ class WebResearchClient:
         key = self._key()
 
         async def invoke(seconds: float) -> Parsed[WebResult]:
-            return await self._post_once(query, key, seconds)
+            return await self._post_once(query, key, seconds, allowed_domains)
 
         return await self._calls.run(spec, invoke)
 
     async def _post_once(
-        self, query: str, key: str, seconds: float
+        self,
+        query: str,
+        key: str,
+        seconds: float,
+        allowed_domains: tuple[str, ...] | None,
     ) -> Parsed[WebResult]:
         for name in (
             "httpx",
@@ -634,6 +657,11 @@ class WebResearchClient:
                             "type": "web_search",
                             "external_web_access": True,
                             "search_context_size": "low",
+                            **(
+                                {"filters": {"allowed_domains": list(allowed_domains)}}
+                                if allowed_domains is not None
+                                else {}
+                            ),
                         }
                     ],
                     "tool_choice": "required",

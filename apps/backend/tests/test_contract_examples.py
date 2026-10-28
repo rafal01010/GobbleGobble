@@ -660,6 +660,7 @@ def test_openapi_export_contains_live_routes_and_resolved_domain_references() ->
     assert set(paths) == {
         "/ready",
         "/api/session",
+        "/api/locations/resolve",
         "/api/runs",
         "/api/searches/{search_id}/runs/{run_id}",
         "/api/searches/{search_id}/runs/{run_id}/events",

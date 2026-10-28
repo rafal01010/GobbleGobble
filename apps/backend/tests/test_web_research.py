@@ -102,6 +102,34 @@ def client_for(settings: Settings, body: dict[str, Any]) -> WebResearchClient:
     )
 
 
+@pytest.mark.asyncio
+async def test_search_sends_domain_allowlist_and_rejects_invalid_list(
+    settings: Settings,
+) -> None:
+    sent: list[dict[str, Any]] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        sent.append(json.loads(request.content))
+        return httpx.Response(200, json=payload())
+
+    client = WebResearchClient(
+        attempt(settings),
+        limits=WebLimits(max_output_tokens=64, max_tool_calls=1),
+        test_transport=httpx.MockTransport(respond),
+    )
+    with pytest.raises(WebResearchInputError):
+        await client.search("query", input_sources=(), allowed_domains=())
+    with pytest.raises(WebResearchInputError):
+        await client.search(
+            "query", input_sources=(), allowed_domains=("*.example.com",)
+        )
+    result = await client.search(
+        "query", input_sources=(), allowed_domains=("example.com",)
+    )
+    assert isinstance(result, Completed)
+    assert sent[0]["tools"][0]["filters"] == {"allowed_domains": ["example.com"]}
+
+
 def capped_payload() -> dict[str, Any]:
     body = payload()
     body["max_tool_calls"] = 2

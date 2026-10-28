@@ -4,10 +4,10 @@ import argparse
 import json
 
 from fastapi import FastAPI
-from fastapi.openapi.models import OpenAPI
 from fastapi.openapi.utils import get_openapi
+from fastapi.routing import APIRoute
 from pydantic import BaseModel
-from pydantic.json_schema import JsonSchemaMode, JsonSchemaValue, models_json_schema
+from pydantic.json_schema import JsonSchemaValue
 
 from app.schemas.lifecycle import EventBatch, RunEvent, RunReadResponse
 from app.schemas.operations import (
@@ -40,28 +40,31 @@ _ROOT_MODELS: tuple[type[BaseModel], ...] = (
     RunEvent,
     EventBatch,
 )
-_SCHEMA_MODES: tuple[JsonSchemaMode, ...] = ("validation", "serialization")
 
 
 def compose_openapi_document(app: FastAPI) -> JsonSchemaValue:
-    document = get_openapi(title=app.title, version=app.version, routes=app.routes)
-    _, graph = models_json_schema(
-        [(model, mode) for model in _ROOT_MODELS for mode in _SCHEMA_MODES],
-        ref_template="#/components/schemas/{model}",
+    anchors = []
+    for model in _ROOT_MODELS:
+
+        def anchor(body: object) -> None:
+            pass
+
+        anchor.__annotations__["body"] = model
+        anchors.append(
+            APIRoute(
+                f"/__contract__/{model.__name__}",
+                anchor,
+                methods=["POST"],
+                response_model=model,
+                operation_id=f"contract{model.__name__}",
+            )
+        )
+    # One schema graph keeps shared input/output aliases consistent across roots.
+    document = get_openapi(
+        title=app.title, version=app.version, routes=[*app.routes, *anchors]
     )
-    retained = OpenAPI.model_validate(
-        {
-            "openapi": "3.1.0",
-            "info": {"title": app.title, "version": app.version},
-            "paths": {},
-            "components": {"schemas": graph["$defs"]},
-        }
-    ).model_dump(by_alias=True, exclude_none=True)
-    schemas = document.setdefault("components", {}).setdefault("schemas", {})
-    for name, definition in retained["components"]["schemas"].items():
-        if name in schemas and schemas[name] != definition:
-            raise ValueError("incompatible_openapi_component")
-        schemas[name] = definition
+    for route in anchors:
+        del document["paths"][route.path]
     _require_resolved_references(document)
     return document
 

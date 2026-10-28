@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/locations/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resolve Location */
+        post: operations["resolveLocation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/runs": {
         parameters: {
             query?: never;
@@ -146,18 +163,18 @@ export interface components {
              */
             status: "assessed";
         };
-        AttemptId: components["schemas"]["NonBlankText"];
+        AttemptId: components["schemas"]["app__schemas__search__NonBlankText__2"];
         /** Attribution */
         Attribution: {
-            attribution_id: components["schemas"]["NonBlankText"];
-            avatar_url?: components["schemas"]["NonBlankText"] | null;
+            attribution_id: components["schemas"]["app__schemas__search__NonBlankText__2"];
+            avatar_url?: components["schemas"]["app__schemas__search__NonBlankText__2"] | null;
             /**
              * Kind
              * @enum {string}
              */
             kind: "publisher" | "author";
-            name?: components["schemas"]["NonBlankText"] | null;
-            url?: components["schemas"]["NonBlankText"] | null;
+            name?: components["schemas"]["app__schemas__search__NonBlankText__2"] | null;
+            url?: components["schemas"]["app__schemas__search__NonBlankText__2"] | null;
         };
         /** AvailableReviews */
         AvailableReviews: {
@@ -174,7 +191,7 @@ export interface components {
             command_id: components["schemas"]["CommandId"];
             expected_attempt_id: components["schemas"]["AttemptId"] | null;
             run_id: components["schemas"]["RunId"];
-            search_id: components["schemas"]["NonBlankText"];
+            search_id: components["schemas"]["app__schemas__search__NonBlankText__2"];
         };
         /** CancelRunResponse */
         CancelRunResponse: {
@@ -223,7 +240,7 @@ export interface components {
         ChooseFoodRequest: {
             command_id: components["schemas"]["CommandId"];
             run_id: components["schemas"]["RunId"];
-            search_id: components["schemas"]["NonBlankText"];
+            search_id: components["schemas"]["app__schemas__search__NonBlankText__2"];
             selection: components["schemas"]["ChoiceSelection"];
         };
         /** ChosenLocationInput */
@@ -233,10 +250,10 @@ export interface components {
              * @enum {string}
              */
             kind: "chosen";
-            query: components["schemas"]["NonBlankText"];
+            query: components["schemas"]["app__schemas__search__NonBlankText__1"];
         };
         CommandDisposition: components["schemas"]["AcceptedCommand"] | components["schemas"]["ReplayedCommand"];
-        CommandId: components["schemas"]["NonBlankText"];
+        CommandId: components["schemas"]["app__schemas__search__NonBlankText__2"];
         /** CommandResponse */
         CommandResponse: {
             command: components["schemas"]["CommandDisposition"];
@@ -278,13 +295,13 @@ export interface components {
         };
         /** DocumentLocator */
         DocumentLocator: {
-            exact_quote?: components["schemas"]["NonBlankText"] | null;
+            exact_quote?: components["schemas"]["app__schemas__search__NonBlankText__2"] | null;
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
             kind: "document";
-            section?: components["schemas"]["NonBlankText"] | null;
+            section?: components["schemas"]["app__schemas__search__NonBlankText__2"] | null;
         };
         /** DrivingConstraint */
         DrivingConstraint: {
@@ -301,7 +318,7 @@ export interface components {
         };
         /** EphemeralRetention */
         EphemeralRetention: {
-            basis: components["schemas"]["NonBlankText"];
+            basis: components["schemas"]["app__schemas__search__NonBlankText__2"];
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -340,7 +357,7 @@ export interface components {
             /** Events */
             events: components["schemas"]["RunEvent"][];
             run_id: components["schemas"]["RunId"];
-            search_id: components["schemas"]["NonBlankText"];
+            search_id: components["schemas"]["app__schemas__search__NonBlankText__2"];
         };
         EventCursor: number;
         EventPayload: components["schemas"]["QueuedEvent"] | components["schemas"]["ProgressEvent"] | components["schemas"]["CancellingEvent"] | components["schemas"]["CompletedEvent"] | components["schemas"]["CancelledEvent"];
@@ -351,12 +368,12 @@ export interface components {
              * Attribution Ids
              * @default []
              */
-            attribution_ids: components["schemas"]["NonBlankText"][];
+            attribution_ids: components["schemas"]["app__schemas__search__NonBlankText__2"][];
             evidence_id: components["schemas"]["EvidenceId"];
             freshness: components["schemas"]["Freshness"];
             locator: components["schemas"]["EvidenceLocator"];
             source_id: components["schemas"]["SourceId"];
-            statement: components["schemas"]["NonBlankText"];
+            statement: components["schemas"]["app__schemas__search__NonBlankText__2"];
             subject_place_ids: components["schemas"]["PlaceIds"];
         };
         /**
@@ -380,7 +397,7 @@ export interface components {
              */
             food_claims: components["schemas"]["FoodClaim"][];
             /** Place Ids */
-            place_ids: components["schemas"]["NonBlankText"][];
+            place_ids: components["schemas"]["app__schemas__search__NonBlankText__2"][];
             /**
              * Review Assessments
              * @default []
@@ -401,8 +418,8 @@ export interface components {
         FallbackReason: "zero_review" | "empty_sample" | "omitted_sample" | "no_match" | "restricted" | "provider_unavailable" | "partial_sample";
         /** FoodChoice */
         FoodChoice: {
-            choice_id: components["schemas"]["NonBlankText"];
-            label: components["schemas"]["NonBlankText"];
+            choice_id: components["schemas"]["app__schemas__search__NonBlankText__2"];
+            label: components["schemas"]["app__schemas__search__NonBlankText__2"];
             /** Supports */
             supports: components["schemas"]["FoodChoiceSupport"][];
             version_id: components["schemas"]["VersionId"];
@@ -419,10 +436,10 @@ export interface components {
         /** FoodChoiceSupport */
         FoodChoiceSupport: {
             food_claim_ids: components["schemas"]["FoodClaimIds"];
-            place_id: components["schemas"]["NonBlankText"];
+            place_id: components["schemas"]["app__schemas__search__NonBlankText__2"];
         };
         FoodClaim: components["schemas"]["SourcedFoodClaim"] | components["schemas"]["InferredFoodClaim"] | components["schemas"]["UnknownFoodClaim"];
-        FoodClaimIds: components["schemas"]["NonBlankText"][];
+        FoodClaimIds: components["schemas"]["app__schemas__search__NonBlankText__2"][];
         /** FoodRefinementLineage */
         FoodRefinementLineage: {
             choice: components["schemas"]["OfferedFoodChoiceRef"];
@@ -437,7 +454,7 @@ export interface components {
         FoodTopic: "food" | "menu" | "price";
         /** Freshness */
         Freshness: {
-            basis: components["schemas"]["NonBlankText"];
+            basis: components["schemas"]["app__schemas__search__NonBlankText__2"];
             /** Fresh Until */
             fresh_until?: string | null;
             /** Observed At */
@@ -450,9 +467,9 @@ export interface components {
         };
         /** GoogleBranchIdentifiers */
         GoogleBranchIdentifiers: {
-            cid?: components["schemas"]["NonBlankText"] | null;
-            feature_id?: components["schemas"]["NonBlankText"] | null;
-            place_id?: components["schemas"]["NonBlankText"] | null;
+            cid?: components["schemas"]["app__schemas__search__NonBlankText__2"] | null;
+            feature_id?: components["schemas"]["app__schemas__search__NonBlankText__2"] | null;
+            place_id?: components["schemas"]["app__schemas__search__NonBlankText__2"] | null;
         };
         /** GoogleBranchLocator */
         GoogleBranchLocator: {
@@ -465,7 +482,7 @@ export interface components {
         };
         /** GoogleOrigin */
         GoogleOrigin: {
-            access_method: components["schemas"]["NonBlankText"];
+            access_method: components["schemas"]["app__schemas__search__NonBlankText__2"];
             branch: components["schemas"]["GoogleBranchIdentifiers"];
             /**
              * @description discriminator enum property added by openapi-typescript
@@ -476,7 +493,7 @@ export interface components {
         /** GoogleReviewLocator */
         GoogleReviewLocator: {
             branch: components["schemas"]["GoogleBranchIdentifiers"];
-            exact_quote?: components["schemas"]["NonBlankText"] | null;
+            exact_quote?: components["schemas"]["app__schemas__search__NonBlankText__2"] | null;
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -487,13 +504,18 @@ export interface components {
              * @enum {string}
              */
             link_basis: "review" | "branch";
-            review_id: components["schemas"]["NonBlankText"];
-            source_url: components["schemas"]["NonBlankText"];
+            review_id: components["schemas"]["app__schemas__search__NonBlankText__2"];
+            source_url: components["schemas"]["app__schemas__search__NonBlankText__2"];
         };
         GoogleReviewOutcome: components["schemas"]["AvailableReviews"] | components["schemas"]["ZeroReviews"] | components["schemas"]["NoReviewMatch"] | components["schemas"]["RestrictedReviews"] | components["schemas"]["UnavailableReviews"];
+        /** HTTPValidationError */
+        HTTPValidationError: {
+            /** Detail */
+            detail?: components["schemas"]["ValidationError"][];
+        };
         /** IndefiniteRetention */
         IndefiniteRetention: {
-            basis: components["schemas"]["NonBlankText"];
+            basis: components["schemas"]["app__schemas__search__NonBlankText__2"];
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -519,7 +541,7 @@ export interface components {
         };
         /** IndependentOrigin */
         IndependentOrigin: {
-            access_method: components["schemas"]["NonBlankText"];
+            access_method: components["schemas"]["app__schemas__search__NonBlankText__2"];
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -544,9 +566,9 @@ export interface components {
         };
         /** InferredFoodClaim */
         InferredFoodClaim: {
-            basis: components["schemas"]["NonBlankText"];
-            claim_id: components["schemas"]["NonBlankText"];
-            statement: components["schemas"]["NonBlankText"];
+            basis: components["schemas"]["app__schemas__search__NonBlankText__2"];
+            claim_id: components["schemas"]["app__schemas__search__NonBlankText__2"];
+            statement: components["schemas"]["app__schemas__search__NonBlankText__2"];
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -573,21 +595,33 @@ export interface components {
             kind: "insufficient_coverage";
         };
         JourneyFact: components["schemas"]["UnknownJourney"] | components["schemas"]["EstimatedJourney"];
-        Limitations: components["schemas"]["NonBlankText"][];
+        Limitations: components["schemas"]["app__schemas__search__NonBlankText__2"][];
+        LocationChoice: components["schemas"]["PointLocationChoice"] | components["schemas"]["RefineLocationChoice"];
+        /** LocationChoicesOutcome */
+        LocationChoicesOutcome: {
+            /** Choices */
+            choices: components["schemas"]["LocationChoice"][];
+            message: components["schemas"]["app__schemas__search__NonBlankText__2"];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            status: "choices";
+        };
         LocationInput: components["schemas"]["CurrentLocationInput"] | components["schemas"]["ChosenLocationInput"];
         /** LocationNoMatchOutcome */
         LocationNoMatchOutcome: {
-            message: components["schemas"]["NonBlankText"];
+            message: components["schemas"]["app__schemas__search__NonBlankText__2"];
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
             status: "no_match";
         };
-        LocationResolutionOutcome: components["schemas"]["ResolvedLocationOutcome"] | components["schemas"]["LocationNoMatchOutcome"] | components["schemas"]["LocationUnavailableOutcome"];
+        LocationResolutionOutcome: components["schemas"]["ResolvedLocationOutcome"] | components["schemas"]["LocationNoMatchOutcome"] | components["schemas"]["LocationUnavailableOutcome"] | components["schemas"]["LocationChoicesOutcome"];
         /** LocationUnavailableOutcome */
         LocationUnavailableOutcome: {
-            message: components["schemas"]["NonBlankText"];
+            message: components["schemas"]["app__schemas__search__NonBlankText__2"];
             /** Retryable */
             retryable: boolean;
             /**
@@ -598,8 +632,8 @@ export interface components {
         };
         /** NoMatchesOutcome */
         NoMatchesOutcome: {
-            assessed_scope: components["schemas"]["NonBlankText"];
-            explanation: components["schemas"]["NonBlankText"];
+            assessed_scope: components["schemas"]["app__schemas__search__NonBlankText__2"];
+            explanation: components["schemas"]["app__schemas__search__NonBlankText__2"];
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -608,24 +642,23 @@ export interface components {
         };
         /** NoReviewMatch */
         NoReviewMatch: {
-            reason: components["schemas"]["NonBlankText"];
+            reason: components["schemas"]["app__schemas__search__NonBlankText__2"];
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
             status: "no_match";
         };
-        NonBlankText: string;
         /** OfferedFoodChoiceRef */
         OfferedFoodChoiceRef: {
-            choice_id: components["schemas"]["NonBlankText"];
+            choice_id: components["schemas"]["app__schemas__search__NonBlankText__2"];
             version_id: components["schemas"]["VersionId"];
         };
         OpeningFact: components["schemas"]["UnknownOpening"] | components["schemas"]["AssessedOpening"];
         /** OperationError */
         OperationError: {
             code: components["schemas"]["ErrorCode"];
-            message: components["schemas"]["NonBlankText"];
+            message: components["schemas"]["app__schemas__search__NonBlankText__2"];
             /** Retryable */
             retryable: boolean;
         };
@@ -658,10 +691,20 @@ export interface components {
             /** Name */
             name?: string | null;
             opening?: components["schemas"]["OpeningFact"];
-            parent_place_id?: components["schemas"]["NonBlankText"] | null;
-            place_id: components["schemas"]["NonBlankText"];
+            parent_place_id?: components["schemas"]["app__schemas__search__NonBlankText__2"] | null;
+            place_id: components["schemas"]["app__schemas__search__NonBlankText__2"];
         };
-        PlaceIds: components["schemas"]["NonBlankText"][];
+        PlaceIds: components["schemas"]["app__schemas__search__NonBlankText__2"][];
+        /** PointLocationChoice */
+        PointLocationChoice: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "point";
+            label: components["schemas"]["app__schemas__search__NonBlankText__2"];
+            origin: components["schemas"]["SearchOrigin"];
+        };
         PositiveMinutes: number;
         /** ProgressEvent */
         ProgressEvent: {
@@ -674,8 +717,8 @@ export interface components {
         };
         /** ProviderReference */
         ProviderReference: {
-            provider: components["schemas"]["NonBlankText"];
-            provider_id: components["schemas"]["NonBlankText"];
+            provider: components["schemas"]["app__schemas__search__NonBlankText__2"];
+            provider_id: components["schemas"]["app__schemas__search__NonBlankText__2"];
         };
         /** QueuedEvent */
         QueuedEvent: {
@@ -696,7 +739,7 @@ export interface components {
         /** ReadRunRequest */
         ReadRunRequest: {
             run_id: components["schemas"]["RunId"];
-            search_id: components["schemas"]["NonBlankText"];
+            search_id: components["schemas"]["app__schemas__search__NonBlankText__2"];
         };
         /** ReadyOutcome */
         ReadyOutcome: {
@@ -722,9 +765,9 @@ export interface components {
              * Food Claim Ids
              * @default []
              */
-            food_claim_ids: components["schemas"]["NonBlankText"][];
-            place_id: components["schemas"]["NonBlankText"];
-            why_to_go: components["schemas"]["NonBlankText"];
+            food_claim_ids: components["schemas"]["app__schemas__search__NonBlankText__2"][];
+            place_id: components["schemas"]["app__schemas__search__NonBlankText__2"];
+            why_to_go: components["schemas"]["app__schemas__search__NonBlankText__2"];
         };
         /**
          * RecommendationCollection
@@ -732,7 +775,7 @@ export interface components {
          */
         RecommendationCollection: {
             request: components["schemas"]["SearchRequest"];
-            search_id: components["schemas"]["NonBlankText"];
+            search_id: components["schemas"]["app__schemas__search__NonBlankText__2"];
             /** Snapshots */
             snapshots: components["schemas"]["ResearchSnapshot"][];
             /** Versions */
@@ -751,8 +794,22 @@ export interface components {
             research_snapshot_id: components["schemas"]["SnapshotId"];
             /** Runners Up */
             runners_up: components["schemas"]["Recommendation"][];
-            shortfall_reason?: components["schemas"]["NonBlankText"] | null;
+            shortfall_reason?: components["schemas"]["app__schemas__search__NonBlankText__2"] | null;
             version_id: components["schemas"]["VersionId"];
+        };
+        /** RefineLocationChoice */
+        RefineLocationChoice: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "refine_query";
+            label: components["schemas"]["app__schemas__search__NonBlankText__2"];
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "broad_area" | "unconfirmed_point" | "timezone_unavailable";
         };
         /** ReplayedCommand */
         ReplayedCommand: {
@@ -799,7 +856,7 @@ export interface components {
              * @default []
              */
             provider_refs: components["schemas"]["ProviderReference"][];
-            timezone: components["schemas"]["NonBlankText"];
+            timezone: components["schemas"]["app__schemas__search__NonBlankText__2"];
         };
         /** ResolvedLocationOutcome */
         ResolvedLocationOutcome: {
@@ -812,7 +869,7 @@ export interface components {
         };
         /** RestrictedReviews */
         RestrictedReviews: {
-            reason: components["schemas"]["NonBlankText"];
+            reason: components["schemas"]["app__schemas__search__NonBlankText__2"];
             /**
              * Requested Use
              * @enum {string}
@@ -838,11 +895,11 @@ export interface components {
             command_id: components["schemas"]["CommandId"];
             expected_attempt_id: components["schemas"]["AttemptId"] | null;
             run_id: components["schemas"]["RunId"];
-            search_id: components["schemas"]["NonBlankText"];
+            search_id: components["schemas"]["app__schemas__search__NonBlankText__2"];
         };
         /** ReviewAssessment */
         ReviewAssessment: {
-            assessment_id: components["schemas"]["NonBlankText"];
+            assessment_id: components["schemas"]["app__schemas__search__NonBlankText__2"];
             fallback?: components["schemas"]["IndependentFallback"] | null;
             /**
              * Findings
@@ -850,18 +907,18 @@ export interface components {
              */
             findings: components["schemas"]["ReviewFinding"][];
             google: components["schemas"]["GoogleReviewOutcome"];
-            place_id: components["schemas"]["NonBlankText"];
+            place_id: components["schemas"]["app__schemas__search__NonBlankText__2"];
         };
         /** ReviewFinding */
         ReviewFinding: {
-            basis?: components["schemas"]["NonBlankText"] | null;
+            basis?: components["schemas"]["app__schemas__search__NonBlankText__2"] | null;
             /**
              * Interpretation
              * @default sourced
              * @enum {string}
              */
             interpretation: "sourced" | "inferred";
-            statement: components["schemas"]["NonBlankText"];
+            statement: components["schemas"]["app__schemas__search__NonBlankText__2"];
             subjects: components["schemas"]["Supports"];
             /**
              * Topic
@@ -883,23 +940,23 @@ export interface components {
             complete_history: false;
             /** Evidence Ids */
             evidence_ids: components["schemas"]["EvidenceId"][];
-            observed_order: components["schemas"]["NonBlankText"];
+            observed_order: components["schemas"]["app__schemas__search__NonBlankText__2"];
             /**
              * Omissions
              * @default []
              */
-            omissions: components["schemas"]["NonBlankText"][];
+            omissions: components["schemas"]["app__schemas__search__NonBlankText__2"][];
             /**
              * Partial
              * @default false
              */
             partial: boolean;
-            qualification?: components["schemas"]["NonBlankText"] | null;
+            qualification?: components["schemas"]["app__schemas__search__NonBlankText__2"] | null;
             reported_total: components["schemas"]["Count"] | null;
-            reported_total_basis: components["schemas"]["NonBlankText"];
-            requested_order: components["schemas"]["NonBlankText"];
+            reported_total_basis: components["schemas"]["app__schemas__search__NonBlankText__2"];
+            requested_order: components["schemas"]["app__schemas__search__NonBlankText__2"];
             sample_size: components["schemas"]["Count"];
-            selection_method: components["schemas"]["NonBlankText"];
+            selection_method: components["schemas"]["app__schemas__search__NonBlankText__2"];
             /**
              * State
              * @enum {string}
@@ -922,10 +979,10 @@ export interface components {
              * @default 1
              */
             schema_version: number;
-            search_id: components["schemas"]["NonBlankText"];
+            search_id: components["schemas"]["app__schemas__search__NonBlankText__2"];
             sequence: components["schemas"]["EventSequence"];
         };
-        RunId: components["schemas"]["NonBlankText"];
+        RunId: components["schemas"]["app__schemas__search__NonBlankText__2"];
         RunOutcome: components["schemas"]["ReadyOutcome"] | components["schemas"]["PartialOutcome"] | components["schemas"]["NoMatchesOutcome"] | components["schemas"]["InsufficientCoverageOutcome"] | components["schemas"]["TechnicalFailureOutcome"];
         /**
          * RunReadResponse
@@ -942,7 +999,7 @@ export interface components {
             last_event_sequence: components["schemas"]["EventCursor"];
             operation: components["schemas"]["OperationKind"];
             run_id: components["schemas"]["RunId"];
-            search_id: components["schemas"]["NonBlankText"];
+            search_id: components["schemas"]["app__schemas__search__NonBlankText__2"];
             state: components["schemas"]["RunState"];
         };
         /** @enum {string} */
@@ -990,13 +1047,13 @@ export interface components {
              * Attribution Ids
              * @default []
              */
-            attribution_ids: components["schemas"]["NonBlankText"][];
+            attribution_ids: components["schemas"]["app__schemas__search__NonBlankText__2"][];
             origin: components["schemas"]["SourceOrigin"];
             policy: components["schemas"]["SourcePolicy"];
-            publisher: components["schemas"]["NonBlankText"];
+            publisher: components["schemas"]["app__schemas__search__NonBlankText__2"];
             retention: components["schemas"]["Retention"];
             source_id: components["schemas"]["SourceId"];
-            source_url: components["schemas"]["NonBlankText"];
+            source_url: components["schemas"]["app__schemas__search__NonBlankText__2"];
             subject_place_ids: components["schemas"]["PlaceIds"];
         };
         SourceId: string;
@@ -1011,8 +1068,8 @@ export interface components {
         };
         /** SourcedFoodClaim */
         SourcedFoodClaim: {
-            claim_id: components["schemas"]["NonBlankText"];
-            statement: components["schemas"]["NonBlankText"];
+            claim_id: components["schemas"]["app__schemas__search__NonBlankText__2"];
+            statement: components["schemas"]["app__schemas__search__NonBlankText__2"];
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -1029,7 +1086,7 @@ export interface components {
         /** SubjectSupport */
         SubjectSupport: {
             evidence_ids: components["schemas"]["EvidenceIds"];
-            place_id: components["schemas"]["NonBlankText"];
+            place_id: components["schemas"]["app__schemas__search__NonBlankText__2"];
         };
         Supports: components["schemas"]["SubjectSupport"][];
         /** TechnicalFailureOutcome */
@@ -1040,7 +1097,7 @@ export interface components {
              * @enum {string}
              */
             kind: "technical_failure";
-            message: components["schemas"]["NonBlankText"];
+            message: components["schemas"]["app__schemas__search__NonBlankText__2"];
             /** Retryable */
             retryable: boolean;
         };
@@ -1049,7 +1106,7 @@ export interface components {
         TravelMode: "walk" | "drive";
         /** UnavailableReviews */
         UnavailableReviews: {
-            reason: components["schemas"]["NonBlankText"];
+            reason: components["schemas"]["app__schemas__search__NonBlankText__2"];
             source_id?: components["schemas"]["SourceId"] | null;
             /**
              * @description discriminator enum property added by openapi-typescript
@@ -1059,8 +1116,8 @@ export interface components {
         };
         /** UnknownFoodClaim */
         UnknownFoodClaim: {
-            claim_id: components["schemas"]["NonBlankText"];
-            gap: components["schemas"]["NonBlankText"];
+            claim_id: components["schemas"]["app__schemas__search__NonBlankText__2"];
+            gap: components["schemas"]["app__schemas__search__NonBlankText__2"];
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -1091,7 +1148,7 @@ export interface components {
         };
         /** UnknownRetention */
         UnknownRetention: {
-            basis: components["schemas"]["NonBlankText"];
+            basis: components["schemas"]["app__schemas__search__NonBlankText__2"];
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -1100,7 +1157,7 @@ export interface components {
         };
         /** UntilRetention */
         UntilRetention: {
-            basis: components["schemas"]["NonBlankText"];
+            basis: components["schemas"]["app__schemas__search__NonBlankText__2"];
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -1114,12 +1171,25 @@ export interface components {
         };
         /** UseDeclaration */
         UseDeclaration: {
-            basis: components["schemas"]["NonBlankText"];
+            basis: components["schemas"]["app__schemas__search__NonBlankText__2"];
             /**
              * Decision
              * @enum {string}
              */
             decision: "allowed" | "prohibited" | "unknown";
+        };
+        /** ValidationError */
+        ValidationError: {
+            /** Context */
+            ctx?: Record<string, never>;
+            /** Input */
+            input?: unknown;
+            /** Location */
+            loc: (string | number)[];
+            /** Message */
+            msg: string;
+            /** Error Type */
+            type: string;
         };
         VersionId: string;
         /** WalkingConstraint */
@@ -1137,11 +1207,11 @@ export interface components {
             /** @default 0 */
             after_sequence: components["schemas"]["EventCursor"];
             run_id: components["schemas"]["RunId"];
-            search_id: components["schemas"]["NonBlankText"];
+            search_id: components["schemas"]["app__schemas__search__NonBlankText__2"];
         };
         /** ZeroReviews */
         ZeroReviews: {
-            confirmation_basis: components["schemas"]["NonBlankText"];
+            confirmation_basis: components["schemas"]["app__schemas__search__NonBlankText__2"];
             /**
              * Reported Total
              * @default 0
@@ -1154,6 +1224,8 @@ export interface components {
              */
             status: "zero_review";
         };
+        app__schemas__search__NonBlankText__1: string;
+        app__schemas__search__NonBlankText__2: string;
     };
     responses: never;
     parameters: never;
@@ -1163,6 +1235,111 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    resolveLocation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveLocationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResolveLocationResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Method Not Allowed */
+            405: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     startRun: {
         parameters: {
             query?: never;

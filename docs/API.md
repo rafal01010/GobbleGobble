@@ -1,6 +1,6 @@
 # Backend API
 
-The API currently bootstraps anonymous sessions, admits queued runs, reads their state and streams committed events. It does not yet resolve locations through HTTP, execute production research, publish recommendation versions or expose refinement/retry/cancel routes. A [controlled worker](SETUP.md#run-a-diagnostic-job) advances an explicitly selected run without food research.
+The API currently bootstraps anonymous sessions, resolves locations, admits queued runs, reads their state and streams committed events. It does not yet execute production research, publish recommendation versions or expose refinement/retry/cancel routes. A [controlled worker](SETUP.md#run-a-diagnostic-job) advances an explicitly selected run without food research.
 
 [application.py](../apps/backend/app/api/application.py) owns routes and the HTTP boundary. The Pydantic [domain models](DOMAIN.md) are authoritative payload definitions. The diagnostic HTTP/database/worker flow has been exercised through the local frontend proxy. The examples below describe contracts, not restaurant searches.
 
@@ -12,6 +12,7 @@ Start the API using [local setup](SETUP.md#start-the-api). App construction and 
 |---|---|---|
 | `GET /ready` | 200 `{"status":"ready"}` | Checks complete migration history and checksums. Does not repair storage or claim worker/provider readiness. |
 | `POST /api/session` | 204, empty | Issues a session only for an absent cookie. Resolves an existing cookie without rotation; invalid/empty credentials receive 401. |
+| `POST /api/locations/resolve` | 200 `ResolveLocationResponse` | Resolves coordinates or a chosen query, returns typed choices, or reports no match/provider unavailability. Requires a valid session. |
 | `POST /api/runs` | 202 `CommandResponse` | Commits queued admission or replays the current durable snapshot without waiting for research. |
 | `GET /api/searches/{search_id}/runs/{run_id}` | 200 `RunReadResponse` | Authorizes the search and selects the run by both IDs. Recommendations are not stored yet. |
 | `GET /api/searches/{search_id}/runs/{run_id}/events` | 200 `text/event-stream`, or 204 when terminal and caught up | Replays after a sequence, then follows newly committed events. |
@@ -63,6 +64,14 @@ Cache-Control: no-store
 ```
 
 The start operation currently accepts an already resolved request. It does not perform location lookup. Supply a current aware dining instant when exercising it; this date is illustrative.
+
+Location resolution accepts `{"location":{"kind":"current","coordinates":{"latitude":14.6,"longitude":121.0}}}` or `{"location":{"kind":"chosen","query":"Rizal Monument Manila"}}`. A chosen query can also contain latitude and longitude separated by a comma, such as `14.6, 121.0`. Queries contain at most 500 characters. No local-script input or country filter is required.
+
+The response's `outcome.status` is `resolved`, `choices`, `no_match`, or `provider_unavailable`. A resolved outcome supplies `origin` for the start request. A `choices` outcome contains up to five items. A `point` item supplies a label and `origin`; submit that origin to `POST /api/runs` after the user selects it. A `refine_query` item supplies a label and reason without an origin. Ask for a more specific address, landmark, or coordinates and repeat resolution. Even a single country or city result requires refinement. Returned choices do not claim complete coverage.
+
+Coordinates retain the exact submitted point. Reverse lookup supplies a provider time zone rather than substituting a nearby building's coordinates. The readable label is the coordinate pair. Unknown or invalid time zones do not become UTC. Missing setup and provider failures use `provider_unavailable`; empty results use `no_match`.
+
+Each resolution uses at most one provider transmission under the configured geographic timeout. The route loads configured settings lazily and does not require unrelated model credentials. Geoapify is the implemented location provider; unsupported selections produce an unavailable outcome without substitution. Location payloads remain in the response, not in new server-side location storage. Live coverage has not yet been verified.
 
 ```http
 POST /api/runs HTTP/1.1
@@ -134,11 +143,11 @@ cd apps/backend
 
 The module writes deterministic OpenAPI 3.1.0 JSON to stdout and exits zero on success. Generation/output failure exits nonzero; redirection may leave a partial file, so do not consume it after failure. `--help` exits zero; other arguments fail with exit 2 and no JSON. No environment, credential, database, server or network access is needed.
 
-[schema_export.py](../apps/backend/app/schema_export.py) combines real route metadata with retained model definitions, requires shared components to agree and rejects unresolved references. Input/output schema modes can differ. Generated JSON is not a second source to edit.
+[schema_export.py](../apps/backend/app/schema_export.py) generates real routes and retained models in one schema graph so shared input/output aliases keep consistent names. Temporary schema-only routes do not become runtime routes or exported paths. Export rejects unresolved references. Input/output schema modes can differ. Generated JSON is not a second source to edit.
 
 ## Operation payloads
 
-[operations.py](../apps/backend/app/schemas/operations.py) also defines location resolution, finite food-choice/all-options, retry and cancellation payloads. Their presence in the export does not mean routes exist. [Domain validation](DOMAIN.md) describes outcome/result identities, branch support, choice lineage and strict nullable fields.
+[operations.py](../apps/backend/app/schemas/operations.py) also defines finite food-choice/all-options, retry and cancellation payloads whose routes are not implemented. [Domain validation](DOMAIN.md) describes outcome/result identities, branch support, choice lineage and strict nullable fields.
 
 ## Generate frontend types
 

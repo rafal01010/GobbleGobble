@@ -35,7 +35,7 @@ class CurrentLocationInput(_Model):
 
 class ChosenLocationInput(_Model):
     kind: Literal["chosen"] = "chosen"
-    query: NonBlankText = Field(repr=False)
+    query: NonBlankText = Field(max_length=500, repr=False)
 
 
 type LocationInput = Annotated[
@@ -63,8 +63,36 @@ class LocationUnavailableOutcome(_Model):
     retryable: bool
 
 
+class PointLocationChoice(_Model):
+    kind: Literal["point"] = "point"
+    label: NonBlankText = Field(repr=False)
+    origin: SearchOrigin = Field(repr=False)
+
+
+class RefineLocationChoice(_Model):
+    kind: Literal["refine_query"] = "refine_query"
+    label: NonBlankText = Field(repr=False)
+    reason: Literal["broad_area", "unconfirmed_point", "timezone_unavailable"]
+
+
+type LocationChoice = Annotated[
+    PointLocationChoice | RefineLocationChoice, Field(discriminator="kind")
+]
+
+
+class LocationChoicesOutcome(_Model):
+    status: Literal["choices"] = "choices"
+    message: NonBlankText = Field(repr=False)
+    choices: Annotated[
+        tuple[LocationChoice, ...], Field(min_length=1, max_length=5)
+    ] = Field(repr=False)
+
+
 type LocationResolutionOutcome = Annotated[
-    ResolvedLocationOutcome | LocationNoMatchOutcome | LocationUnavailableOutcome,
+    ResolvedLocationOutcome
+    | LocationNoMatchOutcome
+    | LocationUnavailableOutcome
+    | LocationChoicesOutcome,
     Field(discriminator="status"),
 ]
 

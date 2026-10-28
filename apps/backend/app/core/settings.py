@@ -361,6 +361,11 @@ def load_settings(
     return settings
 
 
+def load_location_settings(*, env_file: Path | str | None = _BACKEND_ENV) -> Settings:
+    """Load configured settings without requiring unrelated model credentials."""
+    return _load_settings(Settings, mode="live", env_file=env_file)
+
+
 def safe_diagnostics(settings: Settings) -> SafeDiagnostics:
     return SafeDiagnostics(
         mode=settings.mode,
