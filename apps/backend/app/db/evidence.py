@@ -4,6 +4,7 @@ import json
 import re
 import sqlite3
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any, Literal
 from urllib.parse import urlsplit
 
@@ -51,6 +52,8 @@ class StoredFinding:
     basis: str | None = field(repr=False)
     evidence_ids: tuple[str, ...] = field(repr=False)
     supports: tuple[tuple[str, str], ...] = field(repr=False)
+    polarity: str | None = None
+    wording: str | None = None
 
 
 @dataclass(frozen=True)
@@ -247,6 +250,9 @@ def store_evidence(
             "interpretation": interpretation,
             "basis": basis,
         }
+        if isinstance(finding, ReviewFinding):
+            content["polarity"] = finding.polarity
+            content["wording"] = finding.wording
         connection.execute(
             "INSERT INTO evidence_findings(search_id, finding_id, content_json) VALUES (?, ?, ?)",
             (search.search_id, finding_id, json.dumps(content, ensure_ascii=False)),
@@ -321,4 +327,70 @@ def lookup_evidence(
             )
             for finding_id, (content, supports) in grouped.items()
         ),
+    )
+
+
+@dataclass(frozen=True)
+class FreshEvidenceLookup:
+    lookup: EvidenceLookup
+    stale_findings: tuple[str, ...]
+    unknown_findings: tuple[str, ...]
+
+
+def lookup_fresh_evidence(
+    connection: sqlite3.Connection,
+    search: OwnedSearch,
+    place_id: str,
+    *,
+    now: datetime,
+) -> FreshEvidenceLookup:
+    """Return current findings separately from stale or unconfirmed findings.
+
+    This is a freshness check only. Source permissions must be checked at use.
+    Historical records remain stored under their own retention terms.
+    """
+    if now.tzinfo is None or now.utcoffset() is None:
+        raise ValueError("now must be timezone-aware")
+    lookup = lookup_evidence(connection, search, place_id)
+    rows = connection.execute(
+        "SELECT evidence_id, content_json FROM evidence_items WHERE search_id=?",
+        (search.search_id,),
+    ).fetchall()
+    times = {row["evidence_id"]: json.loads(row["content_json"]) for row in rows}
+
+    def freshness(evidence_id: str) -> str:
+        content = times.get(evidence_id)
+        if content is None or content.get("fresh_until") is None:
+            return "unknown"
+        try:
+            expiry = datetime.fromisoformat(content["fresh_until"])
+            retrieved = datetime.fromisoformat(content["retrieved_at"])
+            if expiry.tzinfo is None or retrieved.tzinfo is None:
+                return "unknown"
+            if now >= expiry:
+                return "stale"
+            if now < retrieved:
+                return "unknown"
+            return "fresh"
+        except KeyError, TypeError, ValueError:
+            return "unknown"
+
+    current = []
+    stale = []
+    unknown = []
+    for finding in lookup.findings:
+        states = {freshness(evidence_id) for _, evidence_id in finding.supports}
+        if "stale" in states:
+            stale.append(finding.finding_id)
+        elif not states or "unknown" in states:
+            unknown.append(finding.finding_id)
+        else:
+            current.append(finding)
+    current_evidence = tuple(
+        item for item in lookup.evidence if freshness(item.evidence_id) == "fresh"
+    )
+    return FreshEvidenceLookup(
+        EvidenceLookup(lookup.sources, current_evidence, tuple(current)),
+        tuple(stale),
+        tuple(unknown),
     )

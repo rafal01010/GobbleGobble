@@ -80,6 +80,16 @@ Receipts persist only their `safe_record()` projection in canonical JSON. Decima
 
 [events.py](../apps/backend/app/db/events.py) reads a bounded ordered suffix strictly after the cursor. Internal limits are 1 through 1000; cursors are strict nonnegative integers. `read_committed_work` returns unique accepted metadata in event/identity order. Reads validate stored JSON, scalar identity, accepting events and latest snapshot/history agreement. Nonzero cursors without matching history are corruption. The history check scans the run event index; no scale claim is measured.
 
+## Research snapshots
+
+[research_snapshots.py](../apps/backend/app/db/research_snapshots.py) indexes candidate identities, retained finding handles, and fixed gap reasons by search and snapshot. It does not copy evidence or finding text into the snapshot tables. The caller stores permitted evidence first, then supplies only finding handles that already belong to the candidate's branch. Google review bodies and their restricted descendants cannot be indexed as stored findings. A permitted Google branch identifier remains in the evidence store for later reacquisition.
+
+The caller identifies Geoapify candidate identity fields as such before saving a name, coordinates, and timezone. The index checks coordinate and timezone shape and the Geoapify storage policy, but it cannot verify the caller's provenance assertion. A candidate without permitted identity data keeps its local ID and kind, and receives a `candidate_reacquisition_required` gap. The index stores no arbitrary gap prose, route facts, or opening facts. It does not yet reacquire candidates or connect to admitted searches.
+
+Sample counts, assessed counts, selection class, and partial status can be retained only for an already stored, branch-scoped independent source. Unknown or restricted material remains an explicit fixed gap. The caller must provide material omission and partial-sample gaps; the index cannot infer missing source content. At most eight sample records are accepted per candidate.
+
+`view_snapshot` pages candidates and finding handles independently with limits from 1 to 100. Each page reports how many candidates and findings remain and supplies continuation handles. A `place_id` filter selects a branch for a narrower view. `lookup_snapshot_finding` checks the search, snapshot, place, and finding handle, then returns a finding only when every supporting item is fresh. Stale or undated support returns a state without finding content. Freshness does not itself establish permission to display or send the finding to a model. The existing evidence store remains the source for attributable source lookup and retained history.
+
 ## Completion and verification limits
 
 [completion.py](../apps/backend/app/db/completion.py) accepts only revalidated coverage-gap or technical-failure outcomes. It preserves identities, advances sequence, appends the matching completed event and uses the same final live-lease fence. Lease rows remain historical; terminal state rejects later claims/renewals. Ready/partial results, no-matches publication and cancellation need their own storage and event projection.

@@ -918,6 +918,12 @@ export interface components {
              * @enum {string}
              */
             interpretation: "sourced" | "inferred";
+            /**
+             * Polarity
+             * @default unclear
+             * @enum {string}
+             */
+            polarity: "positive" | "negative" | "neutral" | "mixed" | "unclear";
             statement: components["schemas"]["app__schemas__search__NonBlankText__2"];
             subjects: components["schemas"]["Supports"];
             /**
@@ -925,6 +931,12 @@ export interface components {
              * @enum {string}
              */
             topic: "complaint" | "food" | "price" | "service" | "reception";
+            /**
+             * Wording
+             * @default unspecified
+             * @enum {string}
+             */
+            wording: "unspecified" | "paraphrase" | "quotation";
         };
         /** ReviewSample */
         ReviewSample: {

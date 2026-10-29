@@ -27,6 +27,24 @@ scripts/local/probe-live.sh --scenario combined --input /private/tmp/gobble-prob
 
 `combined` is the default scenario. There is no fixture fallback, automatic rerun, model substitution or hidden retry. Live calls may incur costs, and local cancellation cannot retract work already dispatched to a provider. Use [settings](SETTINGS.md) for configuration and [integration policy](INTEGRATIONS.md) for source-use and retention requirements.
 
+## Check the production research path
+
+Run the offline research checks from the repository root:
+
+```sh
+scripts/local/verify-research.sh
+```
+
+The following command checks local configuration without sending a request:
+
+```sh
+apps/backend/.venv/bin/python scripts/local/verify-research-live.py
+```
+
+Add `--live` to run the bounded Japan and Philippines checks against the configured services. The command requires the configured research model to be `gpt-6-luna` and the review provider to be `google_reviews`. Each case has an eight-request and 120-second limit. The specialist permits up to three model turns with at most 1,024 output tokens per turn. A location without one confident matching target stops that case. A failed branch match stops review retrieval and model calls for that case.
+
+The command reports source-safe receipts, counts, and available usage. It does not save review bodies or model-generated review text. A returned model proposal still needs a source-support assessment. The command does not establish opening hours or complete recommendation quality. See [settings](SETTINGS.md) for service configuration and [source-use policy](INTEGRATIONS.md) for retention limits.
+
 ## Choose a scenario
 
 Each invocation selects one scenario. The request inventory below is reduced further by the supplied shared allowance.

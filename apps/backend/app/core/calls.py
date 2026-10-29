@@ -8,7 +8,7 @@ from contextvars import ContextVar
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Annotated, Literal
+from typing import TYPE_CHECKING, Annotated, Literal
 from uuid import UUID, uuid4
 
 from openai.types.shared import ChatModel
@@ -23,6 +23,9 @@ from pydantic import (
 
 from app.core.settings import ReviewSettings, Settings
 from app.core.source_policy import SourceUseDenied, require_source_use
+
+if TYPE_CHECKING:
+    from app.agents.research_budget import ResearchBudget
 
 Provider = Literal[
     "geoapify",
@@ -62,6 +65,10 @@ FailureDiagnostic = Literal[
     "response_limit",
     "transport_failure",
     "operation_timeout",
+    "context_limit",
+    "usage_limit",
+    "turn_limit",
+    "tool_limit",
 ]
 Diagnostic = Literal[
     "none",
@@ -71,6 +78,10 @@ Diagnostic = Literal[
     "response_limit",
     "transport_failure",
     "operation_timeout",
+    "context_limit",
+    "usage_limit",
+    "turn_limit",
+    "tool_limit",
 ]
 
 
@@ -208,7 +219,15 @@ class AttemptCalls:
     only when they finish or are cancelled.
     """
 
-    def __init__(self, settings: Settings | ReviewSettings, bounds: Bounds) -> None:
+    def __init__(
+        self,
+        settings: Settings | ReviewSettings,
+        bounds: Bounds,
+        *,
+        research_budget: ResearchBudget | None = None,
+    ) -> None:
+        from app.agents.research_budget import ResearchBudget
+
         bounds = Bounds.model_validate(bounds)
         self._loop = asyncio.get_running_loop()
         self._deadline = self._loop.time() + bounds.total_seconds
@@ -217,6 +236,11 @@ class AttemptCalls:
         self._settings = settings
         self._remaining = bounds.max_requests
         self._receipts: list[Receipt] = []
+        self._research_budget = research_budget or ResearchBudget()
+
+    @property
+    def research_budget(self) -> ResearchBudget:
+        return self._research_budget
 
     @property
     def settings(self) -> Settings:

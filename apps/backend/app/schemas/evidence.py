@@ -211,6 +211,8 @@ class ReviewFinding(_Model):
     statement: NonBlankText = Field(repr=False)
     subjects: Supports = Field(repr=False)
     interpretation: Literal["sourced", "inferred"] = "sourced"
+    polarity: Literal["positive", "negative", "neutral", "mixed", "unclear"] = "unclear"
+    wording: Literal["unspecified", "paraphrase", "quotation"] = "unspecified"
     basis: NonBlankText | None = Field(default=None, repr=False)
 
     @model_validator(mode="after")
@@ -419,6 +421,23 @@ class EvidenceCollection(_Model):
                             "finding evidence is outside the assessed sample"
                         )
 
+        def validate_review_quote(finding: ReviewFinding) -> None:
+            if finding.wording != "quotation":
+                return
+            for binding in finding.subjects:
+                if not any(
+                    finding.statement in evidence[evidence_id].statement
+                    and any(
+                        attribution.attribution_id
+                        in evidence[evidence_id].attribution_ids
+                        and attribution.kind == "author"
+                        and (attribution.name or attribution.url)
+                        for attribution in self.attributions
+                    )
+                    for evidence_id in binding.evidence_ids
+                ):
+                    raise ValueError("quotation requires exact attributed evidence")
+
         def scoped_source(source_id: str, place_id: str, google: bool) -> Source:
             source = sources.get(source_id)
             if source is None:
@@ -500,6 +519,7 @@ class EvidenceCollection(_Model):
                         outcome.source_id,
                         outcome.sample.assessed_evidence_ids,
                     )
+                    validate_review_quote(finding)
             elif assessment.findings:
                 raise ValueError("Google findings require an available assessed sample")
             fallback = assessment.fallback
@@ -537,4 +557,5 @@ class EvidenceCollection(_Model):
                 supports(
                     finding.subjects, assessment.place_id, fallback.source_id, allowed
                 )
+                validate_review_quote(finding)
         return self

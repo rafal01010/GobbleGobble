@@ -188,6 +188,17 @@ MIGRATIONS: tuple[Migration, ...] = (
             "CREATE TABLE evidence_finding_support (search_id TEXT NOT NULL, finding_id TEXT NOT NULL, place_id TEXT NOT NULL, evidence_id TEXT NOT NULL, PRIMARY KEY(search_id, finding_id, place_id, evidence_id), FOREIGN KEY(search_id, finding_id) REFERENCES evidence_findings(search_id, finding_id), FOREIGN KEY(search_id, evidence_id, place_id) REFERENCES evidence_subjects(search_id, evidence_id, place_id))",
         ),
     ),
+    Migration(
+        version=7,
+        name="create_research_snapshot_index",
+        statements=(
+            "CREATE TABLE research_snapshots (search_id TEXT NOT NULL REFERENCES search_ownership(search_id), snapshot_id TEXT NOT NULL, PRIMARY KEY(search_id, snapshot_id))",
+            "CREATE TABLE research_candidates (search_id TEXT NOT NULL, snapshot_id TEXT NOT NULL, place_id TEXT NOT NULL, kind TEXT NOT NULL CHECK(kind IN ('branch','venue','stall')), name TEXT, parent_place_id TEXT, identity_source TEXT NOT NULL CHECK(identity_source IN ('geoapify_geography','reacquisition_required')), latitude REAL, longitude REAL, timezone TEXT, PRIMARY KEY(search_id, snapshot_id, place_id), FOREIGN KEY(search_id, snapshot_id) REFERENCES research_snapshots(search_id, snapshot_id))",
+            "CREATE TABLE research_findings (search_id TEXT NOT NULL, snapshot_id TEXT NOT NULL, place_id TEXT NOT NULL, finding_id TEXT NOT NULL, PRIMARY KEY(search_id, snapshot_id, place_id, finding_id), FOREIGN KEY(search_id, snapshot_id, place_id) REFERENCES research_candidates(search_id, snapshot_id, place_id), FOREIGN KEY(search_id, finding_id) REFERENCES evidence_findings(search_id, finding_id))",
+            "CREATE TABLE research_gaps (search_id TEXT NOT NULL, snapshot_id TEXT NOT NULL, place_id TEXT NOT NULL, reason TEXT NOT NULL CHECK(reason IN ('restricted_source','unavailable_source','missing_menu','missing_reviews','partial_sample','omitted_material','candidate_reacquisition_required')), PRIMARY KEY(search_id, snapshot_id, place_id, reason), FOREIGN KEY(search_id, snapshot_id, place_id) REFERENCES research_candidates(search_id, snapshot_id, place_id))",
+            "CREATE TABLE research_samples (search_id TEXT NOT NULL, snapshot_id TEXT NOT NULL, place_id TEXT NOT NULL, source_id TEXT NOT NULL, sample_size INTEGER NOT NULL, assessed_count INTEGER NOT NULL, reported_total INTEGER, selection TEXT NOT NULL CHECK(selection IN ('source_selected','unknown')), partial INTEGER NOT NULL CHECK(partial IN (0,1)), PRIMARY KEY(search_id, snapshot_id, place_id, source_id), FOREIGN KEY(search_id, snapshot_id, place_id) REFERENCES research_candidates(search_id, snapshot_id, place_id), FOREIGN KEY(search_id, source_id, place_id) REFERENCES evidence_source_subjects(search_id, source_id, place_id))",
+        ),
+    ),
 )
 
 

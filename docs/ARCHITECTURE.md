@@ -22,6 +22,7 @@ GobbleGobble uses a Python backend, SvelteKit frontend and SQLite on one local h
 | `apps/backend/app/review_research.py` | Looks up Google branch candidates, matches them to a place and prepares bounded review batches. Not connected to admitted searches yet. |
 | `apps/backend/app/review_selection.py` | Tries Google reviews first and selects bounded independent web fallback using caller-vetted domains. |
 | `apps/backend/app/agents/probe.py` | Bounded Agents SDK owner/research experiment. |
+| `apps/backend/app/agents/research.py` | Registered place research tool over matched review samples and optional scoped evidence lookup. |
 | `apps/backend/app/core/` | Configuration, request bounds and safe receipts. |
 
 The backend owns secrets, precise request locations, execution limits and durable state. Browser IDs do not authenticate requests. A server-issued anonymous credential owns searches; run operations also check membership in that search. One current worker lease fences mutations against fresh database time. Transactions close before external work, waiting or streaming.
@@ -46,7 +47,7 @@ Keep one main task prominent and reveal details when needed. Normal screens use 
 
 ## Context and completion requirements
 
-This section defines intended production behavior, not implemented recovery capability. The existing probe has request/turn/byte limits and a restrictive food selector. Full request fitting, shared production accounting and durable context reconstruction remain incomplete.
+The research specialist has attempt-scoped request and tool limits and checks an estimate of the complete next SDK request. The estimate counts UTF-8 bytes, reserves output capacity and includes a fixed margin. It is not a provider token count or a guarantee that a request fits the provider's context window. The estimate and observed token usage are recorded separately. Initial review samples are reduced to fit, with a continuation index for deferred reviews. Requests that cannot fit stop with a context-limit outcome; completed sibling contributions remain available. Hosted web research and the specialist share the same allowance. The accounting records executed tool names and outcomes without source text. Full context reconstruction and final-response recovery remain incomplete.
 
 Permitted research snapshots are reusable state; SDK history is a temporary view. Preserve stable search/place/branch/source identities, favorable food findings, complaints, qualifications, conflicts, viable alternatives and material omission status. A retained source ID alone does not prove the evidence reached the model. Restricted or expired content must be reacquired or marked unavailable, including content embedded in summaries or checkpoints.
 

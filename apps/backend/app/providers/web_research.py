@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 import re
 from dataclasses import field
@@ -19,8 +20,10 @@ from pydantic import (
 )
 from pydantic.dataclasses import dataclass
 
+from app.agents.research_budget import ResearchLimit
 from app.core.calls import (
     AttemptCalls,
+    CallFailure,
     CallSpec,
     Completed,
     InputSource,
@@ -611,17 +614,77 @@ class WebResearchClient:
             raise WebResearchInputError() from None
         key = self._key()
 
+        payload = self._payload(query, allowed_domains)
+
         async def invoke(seconds: float) -> Parsed[WebResult]:
-            return await self._post_once(query, key, seconds, allowed_domains)
+            budget = self._calls.research_budget
+            try:
+                budget.reserve_hosted_tools(self._limits.max_tool_calls)
+            except ResearchLimit as error:
+                raise CallFailure(error.reason) from None
+            try:
+                reservation = budget.reserve(
+                    payload,
+                    self._limits.max_output_tokens + 1024 * self._limits.max_tool_calls,
+                )
+            except ResearchLimit as error:
+                budget.finish_hosted_tools(self._limits.max_tool_calls, ())
+                raise CallFailure(error.reason) from None
+            parsed = None
+            outcome = "failed"
+            try:
+                parsed = await self._post_once(payload, key, seconds)
+                outcome = "success"
+                return parsed
+            except CallFailure as error:
+                outcome = error.diagnostic
+                raise
+            finally:
+                budget.finish(
+                    reservation, None if parsed is None else parsed.usage, outcome
+                )
+                outcomes = (
+                    None
+                    if parsed is None
+                    else tuple(
+                        call.status == "completed" for call in parsed.value.hosted_calls
+                    )
+                )
+                budget.finish_hosted_tools(self._limits.max_tool_calls, outcomes)
 
         return await self._calls.run(spec, invoke)
 
+    def _payload(
+        self, query: str, allowed_domains: tuple[str, ...] | None
+    ) -> dict[str, object]:
+        return {
+            "model": self._calls.settings.research_model,
+            "instructions": _INSTRUCTIONS,
+            "input": query,
+            "tools": [
+                {
+                    "type": "web_search",
+                    "external_web_access": True,
+                    "search_context_size": "low",
+                    **(
+                        {"filters": {"allowed_domains": list(allowed_domains)}}
+                        if allowed_domains is not None
+                        else {}
+                    ),
+                }
+            ],
+            "tool_choice": "required",
+            "include": ["web_search_call.action.sources"],
+            "max_output_tokens": self._limits.max_output_tokens,
+            "max_tool_calls": self._limits.max_tool_calls,
+            "store": False,
+            "background": False,
+            "stream": False,
+            "parallel_tool_calls": False,
+        }
+
     async def _post_once(
-        self,
-        query: str,
-        key: str,
-        seconds: float,
-        allowed_domains: tuple[str, ...] | None,
+        self, payload: dict[str, object], key: str, seconds: float
     ) -> Parsed[WebResult]:
         for name in (
             "httpx",
@@ -648,38 +711,24 @@ class WebResearchClient:
                 "POST",
                 "https://api.openai.com/v1/responses",
                 headers={"Authorization": f"Bearer {key}"},
-                json={
-                    "model": self._calls.settings.research_model,
-                    "instructions": _INSTRUCTIONS,
-                    "input": query,
-                    "tools": [
-                        {
-                            "type": "web_search",
-                            "external_web_access": True,
-                            "search_context_size": "low",
-                            **(
-                                {"filters": {"allowed_domains": list(allowed_domains)}}
-                                if allowed_domains is not None
-                                else {}
-                            ),
-                        }
-                    ],
-                    "tool_choice": "required",
-                    "include": ["web_search_call.action.sources"],
-                    "max_output_tokens": self._limits.max_output_tokens,
-                    "max_tool_calls": self._limits.max_tool_calls,
-                    "store": False,
-                    "background": False,
-                    "stream": False,
-                    "parallel_tool_calls": False,
-                },
+                json=payload,
             ) as response,
         ):
-            if not 200 <= response.status_code < 300:
-                raise RuntimeError("web research request failed")
             body = bytearray()
             async for chunk in response.aiter_bytes(chunk_size=65536):
                 if len(body) + len(chunk) > _BODY_LIMIT:
                     raise RuntimeError("web research response exceeded bound")
                 body.extend(chunk)
+            if not 200 <= response.status_code < 300:
+                try:
+                    error = json.loads(body)
+                    if (
+                        isinstance(error, dict)
+                        and isinstance(error.get("error"), dict)
+                        and error["error"].get("code") == "context_length_exceeded"
+                    ):
+                        raise CallFailure("context_limit")
+                except UnicodeDecodeError, json.JSONDecodeError:
+                    pass
+                raise RuntimeError("web research request failed")
             return _parse_response(bytes(body), self._limits)

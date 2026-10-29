@@ -298,3 +298,45 @@ def test_google_origin_cannot_be_reclassified_and_place_id_is_not_stored(tmp_pat
             )
         assert lookup_evidence(conn, search, "branch_a").sources == ()
         assert "SECRET" not in "\n".join(conn.iterdump())
+
+
+def test_review_wording_and_polarity_survive_storage(tmp_path):
+    from pathlib import Path
+
+    path = (
+        Path(__file__).resolve().parents[3]
+        / "docs/examples/evidence-contract/accepted_labeled_independent_review_fallback.json"
+    )
+    data = json.loads(path.read_text())
+    source = data["sources"][1]
+    source["policy"]["derived_output"]["decision"] = "allowed"
+    for name in ("raw_content", "derived_content", "identifiers"):
+        source["retention"][name] = {"mode": "indefinite", "basis": "test"}
+    data["review_assessments"][0]["fallback"]["findings"] = [
+        {
+            "topic": "complaint",
+            "statement": "The reviewer found the soup cold.",
+            "subjects": [
+                {"place_id": "branch_a", "evidence_ids": ["ev_independent_a"]}
+            ],
+            "polarity": "negative",
+            "wording": "paraphrase",
+        }
+    ]
+    collection = EvidenceCollection.model_validate_json(json.dumps(data))
+    settings = DatabaseSettings(database_path=tmp_path / "review.sqlite")
+    migrate(settings)
+    with session(settings) as conn:
+        with transaction(conn):
+            search = create_search(conn, issue_session(conn).principal)
+            store_evidence(
+                conn,
+                search,
+                collection,
+                source_classes={
+                    "src_google_a": "public_google_reviews",
+                    "src_independent_a": "permitted_independent",
+                },
+            )
+        finding = lookup_evidence(conn, search, "branch_a").findings[0]
+        assert (finding.polarity, finding.wording) == ("negative", "paraphrase")

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import Annotated, ClassVar, Literal
@@ -19,13 +20,16 @@ from agents.result import RunResult, RunResultStreaming
 from agents.retry import ModelRetrySettings
 from agents.tool import Tool
 from openai import APIError, AsyncOpenAI
+from openai.types.responses.easy_input_message_param import EasyInputMessageParam
 from openai.types.responses.response_prompt_param import ResponsePromptParam
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from app.agents.research_budget import ResearchLimit
 from app.core.calls import (
     AttemptCalls,
     CallFailure,
     CallSpec,
+    InputSource,
     ModelRole,
     Parsed,
     Receipt,
@@ -115,6 +119,7 @@ class _Progress:
     invocations: int = 0
     research_output: FoodSuggestion | None = field(default=None, repr=False)
     failure: Receipt | Literal["invalid_model_output"] | None = None
+    limit_reason: str | None = None
 
 
 type ProbeResult = SuggestionReady | ProbeUnavailable | ProbeStopped
@@ -219,6 +224,53 @@ class _BoundedTransport(httpx2.AsyncBaseTransport):
         await self._inner.aclose()
 
 
+def _deferrable_pair(
+    items: list[TResponseInputItem],
+) -> tuple[int, int, tuple[str, int]] | None:
+    for index, item in enumerate(items):
+        if (
+            not isinstance(item, dict)
+            or item.get("type") != "function_call"
+            or item.get("name") != "read_review_evidence"
+        ):
+            continue
+        call_id = item.get("call_id")
+        arguments = item.get("arguments")
+        if not isinstance(call_id, str) or not isinstance(arguments, str):
+            continue
+        try:
+            values = json.loads(arguments)
+        except ValueError:
+            continue
+        if not isinstance(values, dict):
+            continue
+        identifier, offset = values.get("item_id"), values.get("offset")
+        if (
+            not isinstance(identifier, str)
+            or re.fullmatch(r"[A-Za-z0-9_-]{1,128}", identifier) is None
+            or type(offset) is not int
+            or offset < 0
+        ):
+            continue
+        matches = [
+            position
+            for position, other in enumerate(items)
+            if isinstance(other, dict)
+            and other.get("type") == "function_call_output"
+            and other.get("call_id") == call_id
+        ]
+        calls = [
+            other
+            for other in items
+            if isinstance(other, dict)
+            and other.get("type") == "function_call"
+            and other.get("call_id") == call_id
+        ]
+        if len(matches) == len(calls) == 1 and matches[0] > index:
+            return index, matches[0], (identifier, offset)
+    return None
+
+
 class _RecordedModel(OpenAIResponsesModel):
     def __init__(
         self,
@@ -226,6 +278,8 @@ class _RecordedModel(OpenAIResponsesModel):
         role: ModelRole,
         client: AsyncOpenAI,
         progress: _Progress,
+        input_sources: tuple[InputSource, ...] = ("minimized_google_reviews",),
+        account_research: bool = False,
     ) -> None:
         model = (
             calls.settings.owner_model
@@ -236,6 +290,8 @@ class _RecordedModel(OpenAIResponsesModel):
         self._calls = calls
         self._role = role
         self._progress = progress
+        self._input_sources = input_sources
+        self._account_research = account_research
 
     async def get_response(
         self,
@@ -260,16 +316,65 @@ class _RecordedModel(OpenAIResponsesModel):
             ):
                 raise CallFailure("invalid_response")
             _silence_content()
+            delegate = OpenAIResponsesModel(
+                model=self.model,
+                openai_client=self._client.with_options(timeout=seconds, max_retries=0),
+            )
+            reservation = None
+            usage = None
+            outcome = "failed"
+            if self._account_research:
+                try:
+                    effective_input = input
+                    deferred: list[tuple[str, int]] = []
+                    while True:
+                        kwargs = delegate._build_response_create_kwargs(
+                            system_instructions,
+                            effective_input,
+                            model_settings,
+                            tools,
+                            output_schema,
+                            handoffs,
+                            previous_response_id,
+                            conversation_id,
+                            False,
+                            prompt,
+                        )
+                        if (
+                            self._calls.research_budget.estimate(kwargs)
+                            + (model_settings.max_tokens or 0)
+                            <= self._calls.research_budget.context_limit
+                        ):
+                            break
+                        if not isinstance(effective_input, list):
+                            break
+                        pair = _deferrable_pair(effective_input)
+                        if pair is None:
+                            break
+                        call_index, output_index, handle = pair
+                        deferred.append(handle)
+                        effective_input = [
+                            item
+                            for index, item in enumerate(effective_input)
+                            if index not in {call_index, output_index}
+                        ]
+                        marker: EasyInputMessageParam = {
+                            "role": "user",
+                            "content": "A prior review lookup was deferred to fit the request. "
+                            f"Use read_review_evidence with item_id {handle[0]} and offset {handle[1]} to retrieve it.",
+                        }
+                        effective_input.append(marker)
+                    reservation = self._calls.research_budget.reserve(
+                        kwargs, model_settings.max_tokens or 0, deferred=len(deferred)
+                    )
+                except ResearchLimit as error:
+                    raise CallFailure(error.reason) from None
+                except TypeError, ValueError:
+                    raise CallFailure("invalid_response") from None
             try:
-                delegate = OpenAIResponsesModel(
-                    model=self.model,
-                    openai_client=self._client.with_options(
-                        timeout=seconds, max_retries=0
-                    ),
-                )
                 response = await delegate.get_response(
                     system_instructions,
-                    input,
+                    effective_input if self._account_research else input,
                     model_settings,
                     tools,
                     output_schema,
@@ -279,29 +384,39 @@ class _RecordedModel(OpenAIResponsesModel):
                     conversation_id=None,
                     prompt=None,
                 )
+                if response.raw_usage is None:
+                    usage = Usage(requests=1)
+                else:
+                    raw = _RawUsage.model_validate(response.raw_usage)
+                    usage = Usage(
+                        input_tokens=raw.input_tokens,
+                        output_tokens=raw.output_tokens,
+                        requests=1,
+                    )
+                outcome = "success"
+                return Parsed(response, usage)
             except (APIError, httpx2.HTTPError) as error:
+                if (
+                    isinstance(error, APIError)
+                    and error.code == "context_length_exceeded"
+                ):
+                    outcome = "context_limit"
+                    raise CallFailure("context_limit") from None
                 current: BaseException | None = error
                 for _ in range(8):
                     if isinstance(current, CallFailure):
                         raise CallFailure(current.diagnostic) from None
                     current = None if current is None else current.__cause__
                 raise CallFailure("transport_failure") from None
-            if response.raw_usage is None:
-                usage = Usage(requests=1)
-            else:
-                raw = _RawUsage.model_validate(response.raw_usage)
-                usage = Usage(
-                    input_tokens=raw.input_tokens,
-                    output_tokens=raw.output_tokens,
-                    requests=1,
-                )
-            return Parsed(response, usage)
+            finally:
+                if reservation is not None:
+                    self._calls.research_budget.finish(reservation, usage, outcome)
 
         result = await self._calls.run(
             CallSpec(
                 capability="model",
                 use="model_inference",
-                input_sources=("minimized_google_reviews",),
+                input_sources=self._input_sources,
                 model_role=self._role,
             ),
             invoke,
