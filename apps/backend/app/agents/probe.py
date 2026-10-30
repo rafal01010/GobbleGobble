@@ -11,7 +11,7 @@ import httpx2
 from agents import Agent, ModelSettings, RunConfig, Runner
 from agents.agent_output import AgentOutputSchemaBase
 from agents.agent_tool_input import StructuredToolInputBuilderOptions
-from agents.exceptions import AgentsException
+from agents.exceptions import AgentsException, ModelBehaviorError
 from agents.handoffs import Handoff
 from agents.items import ModelResponse, TResponseInputItem, TResponseStreamEvent
 from agents.models.interface import ModelTracing
@@ -117,6 +117,9 @@ class ProbeStopped:
 @dataclass
 class _Progress:
     invocations: int = 0
+    input_reviews: int = 0
+    input_bytes: int = 0
+    output_schema_hash: str | None = None
     research_output: FoodSuggestion | None = field(default=None, repr=False)
     failure: Receipt | Literal["invalid_model_output"] | None = None
     limit_reason: str | None = None
@@ -395,6 +398,14 @@ class _RecordedModel(OpenAIResponsesModel):
                     )
                 outcome = "success"
                 return Parsed(response, usage)
+            except ModelBehaviorError as error:
+                if "response.incomplete" in str(error) and "max_output_tokens" in str(
+                    error
+                ):
+                    outcome = "response_limit"
+                    raise CallFailure("response_limit") from None
+                outcome = "invalid_response"
+                raise CallFailure("invalid_response") from None
             except (APIError, httpx2.HTTPError) as error:
                 if (
                     isinstance(error, APIError)

@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 from dataclasses import dataclass, field
 from typing import Literal
-from urllib.parse import quote_plus
+from urllib.parse import parse_qs, quote_plus, urlsplit
 
 import httpx
 
@@ -23,6 +24,7 @@ from app.providers.google_reviews import (
     BranchCandidate,
     GoogleReviewClient,
     _silence_http_content,
+    _website,
 )
 from app.schemas.search import Place
 
@@ -57,6 +59,29 @@ class BranchSearchPage:
 class BranchSearchFailed:
     reason: str
     receipt: Receipt
+
+
+def _candidate_website(value: str | None) -> str | None:
+    if value is None or len(value) > 4096:
+        return None
+    try:
+        url = urlsplit(value)
+        if url.path == "/url" and (
+            not url.netloc
+            and not url.scheme
+            or url.scheme == "https"
+            and url.hostname in {"google.com", "www.google.com"}
+            and url.username is None
+            and url.password is None
+            and url.port in {None, 443}
+        ):
+            targets = parse_qs(url.query).get("q", [])
+            if len(targets) != 1:
+                return None
+            value = targets[0]
+        return value if _website(value) else None
+    except ValueError:
+        return None
 
 
 def _parse(body: bytes) -> BranchSearchPage:
@@ -123,14 +148,27 @@ def _parse(body: bytes) -> BranchSearchPage:
                 return BranchSearchPage("malformed_response")
             if website is not None and len(website) > 4096:
                 return BranchSearchPage("malformed_response")
+            point = node[9]
+            coordinates = None
+            if (
+                isinstance(point, list)
+                and len(point) > 3
+                and all(
+                    type(v) in (int, float) and math.isfinite(v) for v in point[2:4]
+                )
+                and abs(point[2]) <= 90
+                and abs(point[3]) <= 180
+            ):
+                coordinates = (float(point[2]), float(point[3]))
             candidates.append(
                 BranchCandidate(
                     node[11],
                     feature_id=node[10],
                     full_address=full_address,
-                    website=website,
+                    website=_candidate_website(website),
                     rating=rating,
                     reported_total=total,
+                    coordinates=coordinates,
                 )
             )
             if len(candidates) > 20:

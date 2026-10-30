@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+import hashlib
 import json
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Any, Literal
 
 from agents import Agent, ModelSettings, RunConfig, function_tool
 from agents.agent_output import AgentOutputSchema
 from agents.agent_tool_input import StructuredToolInputBuilderOptions
 from agents.exceptions import AgentsException
+from agents.items import ModelResponse
 from agents.result import RunResult, RunResultStreaming
 from agents.retry import ModelRetrySettings
 from agents.tool import FunctionTool, Tool
@@ -23,6 +28,75 @@ from app.providers.google_reviews import GoogleReview
 from app.research_tools import PageInput, ResearchTools, TextInput
 from app.review_research import CandidateReview, PrimaryReviewClient
 from app.schemas.search import Place, SearchRequest
+
+_ReviewGuard = Callable[[GoogleReview], str]
+_REVIEW_INPUT_GUARD: ContextVar[_ReviewGuard | None] = ContextVar(
+    "review_input_guard", default=None
+)
+_REVIEW_CONTEXT_GUARD: ContextVar[Callable[[], str] | None] = ContextVar(
+    "review_context_guard", default=None
+)
+
+
+class ResearchSourceUnavailable(Exception):
+    def __init__(self, reason: str) -> None:
+        self.reason = (
+            reason
+            if reason
+            in {
+                "stale",
+                "restricted",
+                "freshness_unknown",
+                "source_mismatch",
+                "unavailable",
+                "oversized",
+            }
+            else "freshness_unknown"
+        )
+        super().__init__(self.reason)
+
+
+@contextmanager
+def guard_review_inputs(guard: _ReviewGuard) -> Iterator[None]:
+    token = _REVIEW_INPUT_GUARD.set(guard)
+    try:
+        yield
+    finally:
+        _REVIEW_INPUT_GUARD.reset(token)
+
+
+@contextmanager
+def guard_review_context(guard: Callable[[], str]) -> Iterator[None]:
+    token = _REVIEW_CONTEXT_GUARD.set(guard)
+    try:
+        yield
+    finally:
+        _REVIEW_CONTEXT_GUARD.reset(token)
+
+
+class _GuardedResearchModel(_RecordedModel):
+    def __init__(
+        self,
+        *args: Any,
+        current_reviews: Callable[[], tuple[GoogleReview, ...]],
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self._current_reviews = current_reviews
+
+    async def get_response(self, *args: Any, **kwargs: Any) -> ModelResponse:
+        context_guard = _REVIEW_CONTEXT_GUARD.get()
+        if context_guard is not None:
+            status = context_guard()
+            if status != "available":
+                raise ResearchSourceUnavailable(status)
+        guard = _REVIEW_INPUT_GUARD.get()
+        if guard is not None:
+            for review in self._current_reviews():
+                status = guard(review)
+                if status != "available":
+                    raise ResearchSourceUnavailable(status)
+        return await super().get_response(*args, **kwargs)
 
 
 class ResearchArguments(BaseModel):
@@ -92,10 +166,18 @@ class ResearchContribution:
     sample_size: int
     reported_total: int | None
     reacquisition_review_ids: tuple[str, ...] = field(repr=False)
+    input_review_ids: tuple[str, ...] = field(default=(), repr=False)
 
 
 @dataclass(frozen=True)
 class PreparedReviewResearch:
+    calls: AttemptCalls = field(repr=False)
+    request: SearchRequest = field(repr=False)
+    search_id: str | None = field(repr=False)
+    snapshot_id: str | None = field(repr=False)
+    place_id: str = field(repr=False)
+    source: CandidateReview = field(repr=False)
+    research_tools: ResearchTools | None = field(repr=False)
     tool: FunctionTool
     progress: _Progress = field(repr=False)
     contributions: list[ResearchContribution] = field(repr=False)
@@ -220,7 +302,7 @@ def prepare_review_tool(
         raise ValueError("research requires the configured OpenAI provider")
     if result.availability != "available" or result.sample is None:
         raise ValueError("an available matched review sample is required")
-    if not 4096 <= max_input_bytes <= 32000 or not 64 <= max_output_tokens <= 2048:
+    if not 4096 <= max_input_bytes <= 32000 or not 64 <= max_output_tokens <= 8192:
         raise ValueError("invalid research limits")
     sample = result.sample
     if type(start_index) is not int or not 0 <= start_index <= len(sample.reviews):
@@ -312,6 +394,15 @@ def prepare_review_tool(
                     <= calls.research_budget.context_limit
                 ):
                     progress.invocations += 1
+                    progress.input_reviews = len(rows)
+                    progress.input_bytes = len(encoded.encode())
+                    progress.output_schema_hash = hashlib.sha256(
+                        json.dumps(
+                            AgentOutputSchema(ResearchOutput).json_schema(),
+                            sort_keys=True,
+                            separators=(",", ":"),
+                        ).encode()
+                    ).hexdigest()
                     return encoded
                 if len(rows) <= 1:
                     raise ResearchLimit("context_limit")
@@ -329,6 +420,7 @@ def prepare_review_tool(
         if len(output.findings) > 50 or len(output.gaps) > 20:
             raise ValueError("research output exceeds limits")
         accepted: list[ReviewProposal] = []
+        rejected = 0
         for finding in output.findings:
             review = labels.get(finding.review_label)
             if (
@@ -336,62 +428,85 @@ def prepare_review_tool(
                 or not finding.statement.strip()
                 or len(finding.statement) > 2000
             ):
-                raise ValueError("invalid finding reference or statement")
+                rejected += 1
+                continue
             if finding.wording == "quotation" and (
                 not any(
                     finding.statement in text for text in exposed[finding.review_label]
                 )
                 or not (review.author_name or review.author_url)
             ):
-                raise ValueError("quotation requires an exact attributed review")
+                rejected += 1
+                continue
             if finding.wording == "inferred" and not (
                 finding.basis and finding.basis.strip()
             ):
-                raise ValueError("inference requires a basis")
+                rejected += 1
+                continue
             accepted.append(
                 ReviewProposal(finding, review, finding.wording == "quotation")
             )
         if any(not gap.strip() or len(gap) > 1000 for gap in output.gaps):
             raise ValueError("invalid research gap")
+        if rejected and not accepted:
+            raise ValueError("invalid finding reference or statement")
+        gaps = [*output.gaps]
+        if rejected:
+            gaps.append(
+                f"{rejected} proposed findings were omitted because their source or wording could not be validated."
+            )
+        proposal_rows = [
+            {
+                **p.finding.model_dump(),
+                "support": "unverified",
+                "quote_matches_source": p.quote_matches_source,
+                "original_review": p.review.text,
+                "source_url": p.review.source_url,
+                "review_id": p.review.review_id,
+                "link_basis": p.review.link_basis,
+                "author_name": p.review.author_name,
+                "author_url": p.review.author_url,
+            }
+            for p in accepted
+        ]
+        payload: dict[str, object] = {
+            "status": "available",
+            "place_id": result.place_id,
+            "proposals": proposal_rows,
+            "gaps": gaps,
+            "omitted_reviews": omitted,
+            "next_index": next_index,
+            "reacquisition_review_ids": reacquisition_review_ids.copy(),
+        }
+        serialized = json.dumps(payload, ensure_ascii=False)
+        for row in sorted(
+            proposal_rows,
+            key=lambda item: len(str(item["original_review"]).encode()),
+            reverse=True,
+        ):
+            if len(serialized.encode()) <= 24000:
+                break
+            row["original_review"] = None
+            review_id = str(row["review_id"])
+            if review_id not in reacquisition_review_ids:
+                reacquisition_review_ids.append(review_id)
+            payload["reacquisition_review_ids"] = reacquisition_review_ids.copy()
+            serialized = json.dumps(payload, ensure_ascii=False)
+        if len(serialized.encode()) > 24000:
+            raise ValueError("research output exceeds byte limit")
         contribution = ResearchContribution(
             result.place_id,
             sample.branch.source_url,
             tuple(accepted),
-            tuple(output.gaps),
+            tuple(gaps),
             omitted,
             next_index,
             sample.sort,
             len(sample.reviews),
             sample.branch.reported_total,
             tuple(reacquisition_review_ids),
+            tuple(dict.fromkeys(review.review_id for review in labels.values())),
         )
-        serialized = json.dumps(
-            {
-                "status": "available",
-                "place_id": result.place_id,
-                "proposals": [
-                    {
-                        **p.finding.model_dump(),
-                        "support": "unverified",
-                        "quote_matches_source": p.quote_matches_source,
-                        "original_review": p.review.text,
-                        "source_url": p.review.source_url,
-                        "review_id": p.review.review_id,
-                        "link_basis": p.review.link_basis,
-                        "author_name": p.review.author_name,
-                        "author_url": p.review.author_url,
-                    }
-                    for p in accepted
-                ],
-                "gaps": output.gaps,
-                "omitted_reviews": omitted,
-                "next_index": next_index,
-                "reacquisition_review_ids": reacquisition_review_ids,
-            },
-            ensure_ascii=False,
-        )
-        if len(serialized.encode()) > 24000:
-            raise ValueError("research output exceeds byte limit")
         contributions.append(contribution)
         return serialized
 
@@ -465,6 +580,13 @@ def prepare_review_tool(
                             or content.get("offset") != offset
                         ):
                             return json.dumps({"status": "unavailable"})
+                        guard = _REVIEW_INPUT_GUARD.get()
+                        if guard is not None:
+                            status = guard(sample.reviews[index])
+                            if status != "available":
+                                return json.dumps(
+                                    {"status": "unavailable", "reason": status}
+                                )
                         label = f"r{index}"
                         labels[label] = sample.reviews[index]
                         exposed.setdefault(label, []).append(text)
@@ -478,13 +600,14 @@ def prepare_review_tool(
     agent: Agent[None] = Agent(
         name="Place research",
         instructions=_INSTRUCTIONS,
-        model=_RecordedModel(
+        model=_GuardedResearchModel(
             calls,
             "research",
             client,
             progress,
             ("geoapify_geography", "public_google_reviews"),
             account_research=True,
+            current_reviews=lambda: tuple(labels.values()),
         ),
         model_settings=settings,
         output_type=ResearchOutput,
@@ -521,12 +644,27 @@ def prepare_review_tool(
     )
     if any(schema_restrictions(schema) for schema in schemas):
         raise ValueError("research schema uses unsupported provider constraints")
-    return PreparedReviewResearch(tool, progress, contributions)
+    return PreparedReviewResearch(
+        calls,
+        request,
+        None if research_tools is None else research_tools.search_id,
+        None if research_tools is None else research_tools.snapshot_id,
+        result.place_id,
+        result,
+        research_tools,
+        tool,
+        progress,
+        contributions,
+    )
 
 
-async def collect_review_research(calls: AttemptCalls, place: Place) -> CandidateReview:
+async def collect_review_research(
+    calls: AttemptCalls, place: Place, *, source_website: str | None = None
+) -> CandidateReview:
     """Collect the primary branch-matched sample using the shared attempt."""
-    return await PrimaryReviewClient(calls).collect(place)
+    return await PrimaryReviewClient(calls).collect(
+        place, source_website=source_website
+    )
 
 
 @dataclass(frozen=True)
@@ -563,8 +701,16 @@ async def invoke_review_tool(
         RuntimeError,
         _AdmissionStopped,
         ResearchLimit,
-    ):
-        reason = prepared.progress.limit_reason
+    ) as error:
+        safe_errors = {
+            "invalid finding reference or statement": "invalid_finding",
+            "quotation requires an exact attributed review": "invalid_quotation",
+            "inference requires a basis": "invalid_inference",
+            "research output exceeds byte limit": "response_limit",
+            "research output exceeds limits": "response_limit",
+            "invalid research gap": "invalid_gap",
+        }
+        reason = prepared.progress.limit_reason or safe_errors.get(str(error))
         if isinstance(prepared.progress.failure, Receipt):
             receipt = prepared.progress.failure
             reason = (
@@ -586,9 +732,10 @@ async def research_place(
     *,
     prior: tuple[ResearchContribution, ...] = (),
     research_tools: ResearchTools | None = None,
+    source_website: str | None = None,
 ) -> ResearchAttempt:
     """Retrieve a branch sample and invoke the specialist under one attempt."""
-    result = await collect_review_research(calls, place)
+    result = await collect_review_research(calls, place, source_website=source_website)
     if result.availability != "available":
         return ResearchAttempt("unavailable", prior, result.availability)
     prepared = prepare_review_tool(

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from typing import Annotated, Literal
@@ -61,6 +62,77 @@ class HoursEvidence(_HoursModel):
         if len({item.day for item in self.exceptions}) != len(self.exceptions):
             raise ValueError("duplicate date exception")
         return self
+
+
+_WEEKDAYS = {
+    day: index for index, day in enumerate(("Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"))
+}
+
+
+def parse_osm_opening_hours(
+    value: str, *, evidence_id: EvidenceId, local_date: date
+) -> HoursEvidence | None:
+    """Interpret a conservative subset of OSM weekly opening hours for one date."""
+    if not isinstance(value, str) or not value or len(value) > 4096:
+        return None
+    if value.strip() == "24/7":
+        periods = tuple(
+            WeeklyPeriod(weekday=day, start_minute=0, end_minute=1440)
+            for day in range(7)
+        )
+    else:
+        items: list[WeeklyPeriod] = []
+        covered_days: set[int] = set()
+        day_pattern = r"(?:Mo|Tu|We|Th|Fr|Sa|Su)(?:-(?:Mo|Tu|We|Th|Fr|Sa|Su))?"
+        clause_pattern = re.compile(rf"({day_pattern}(?:\s*,\s*{day_pattern})*)\s+(.+)")
+        period_pattern = re.compile(r"(\d{2}):(\d{2})\s*-\s*(\d{2}):(\d{2})")
+        for clause in value.split(";"):
+            match = clause_pattern.fullmatch(clause.strip())
+            if not match:
+                return None
+            days: set[int] = set()
+            for part in match.group(1).split(","):
+                bounds = part.strip().split("-")
+                first = _WEEKDAYS[bounds[0]]
+                last = _WEEKDAYS[bounds[-1]]
+                days.update(
+                    (first + offset) % 7 for offset in range((last - first) % 7 + 1)
+                )
+            if days & covered_days:
+                return None
+            covered_days.update(days)
+            for text in match.group(2).split(","):
+                period = period_pattern.fullmatch(text.strip())
+                if not period:
+                    return None
+                start_hour, start_minute, end_hour, end_minute = map(
+                    int, period.groups()
+                )
+                if (
+                    start_hour > 23
+                    or start_minute > 59
+                    or end_hour > 24
+                    or end_minute > 59
+                    or (end_hour == 24 and end_minute != 0)
+                ):
+                    return None
+                start = start_hour * 60 + start_minute
+                end = end_hour * 60 + end_minute
+                if start == end:
+                    return None
+                items.extend(
+                    WeeklyPeriod(weekday=day, start_minute=start, end_minute=end)
+                    for day in sorted(days)
+                )
+        periods = tuple(items)
+    return HoursEvidence(
+        topic="opening",
+        coverage="partial",
+        valid_from=local_date,
+        valid_through=local_date,
+        evidence_ids=(evidence_id,),
+        weekly=periods,
+    )
 
 
 @dataclass(frozen=True)

@@ -10,6 +10,7 @@ from app.opening import (
     LocalPeriod,
     WeeklyPeriod,
     assess_opening,
+    parse_osm_opening_hours,
 )
 from app.schemas.evidence import EvidenceCollection
 from app.schemas.search import (
@@ -335,3 +336,55 @@ def test_ambiguous_or_unchecked_periods_are_rejected() -> None:
             "2026-10-28T04:00:00Z",
             (hours().model_copy(update={"valid_through": date(2025, 1, 1)}),),
         )
+
+
+def test_osm_schedule_is_source_scoped_partial_and_local_date_bounded() -> None:
+    schedule = parse_osm_opening_hours(
+        "Mo-Fr 09:00-14:00, 17:00-22:00; Sa-Su 11:00-23:00",
+        evidence_id="ev_hours",
+        local_date=date(2026, 10, 28),
+    )
+    assert schedule is not None
+    midday = assess("2026-10-28T04:00:00Z", (schedule,))
+    assert midday.now.opening == "open"
+    assert midday.now.meal_service == "unknown"
+    assert midday.availability == "unknown"
+    afternoon = assess("2026-10-28T07:00:00Z", (schedule,))
+    assert afternoon.now.opening == "unknown"
+    following_day = assess("2026-10-29T04:00:00Z", (schedule,))
+    assert following_day.now.opening == "unknown"
+    assert "outside" in following_day.now.qualification
+
+
+def test_osm_overnight_and_all_day_are_interpreted() -> None:
+    local_day = date(2026, 10, 28)
+    overnight = parse_osm_opening_hours(
+        "Tu 22:00-02:00", evidence_id="ev_hours", local_date=local_day
+    )
+    assert overnight is not None
+    assert assess("2026-10-27T17:00:00Z", (overnight,)).now.opening == "open"
+    all_day = parse_osm_opening_hours(
+        "24/7", evidence_id="ev_hours", local_date=local_day
+    )
+    assert all_day is not None
+    assert assess("2026-10-28T04:00:00Z", (all_day,)).now.opening == "open"
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "Mo-Fr 09:00-18:00; PH off",
+        "Mo-Su 09:00-20:00; Fr 10:00-22:00",
+        "Mo 09:00-24:01",
+        "Mo 09:00-09:00",
+        "Mo 09:00+",
+        "",
+    ],
+)
+def test_unsupported_or_overriding_osm_rules_stay_unknown(value: str) -> None:
+    assert (
+        parse_osm_opening_hours(
+            value, evidence_id="ev_hours", local_date=date(2026, 10, 28)
+        )
+        is None
+    )

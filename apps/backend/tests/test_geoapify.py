@@ -469,3 +469,36 @@ async def test_missing_datasource_stays_absent(settings: Settings) -> None:
     assert isinstance(result, Completed)
     assert result.value[0].provenance.datasource is None
     assert result.value[0].provenance.credits == _EXPECTED_CREDITS
+
+
+@pytest.mark.asyncio
+async def test_discovery_exposes_only_bounded_osm_hours(settings: Settings) -> None:
+    item = feature()
+    item["properties"]["datasource"]["raw"] = {"opening_hours": "Mo-Fr 09:00-18:00"}
+    client = GeoapifyClient(
+        attempt(settings),
+        test_transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, json=places([item]))
+        ),
+    )
+    result = await client.nearby_places(Point(35.6909, 139.7003), radius_m=800)
+    assert isinstance(result, Completed)
+    assert result.value[0].osm_opening_hours == "Mo-Fr 09:00-18:00"
+    datasource = item["properties"]["datasource"]
+    datasource["sourcename"] = "other"
+    other = await client.nearby_places(Point(35.6909, 139.7003), radius_m=800)
+    assert isinstance(other, Completed)
+    assert other.value[0].osm_opening_hours is None
+    datasource["sourcename"] = "openstreetmap"
+    datasource["raw"]["opening_hours"] = "x" * 4097
+    another_client = GeoapifyClient(
+        attempt(settings),
+        test_transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, json=places([item]))
+        ),
+    )
+    oversized = await another_client.nearby_places(
+        Point(35.6909, 139.7003), radius_m=800
+    )
+    assert isinstance(oversized, Completed)
+    assert oversized.value[0].osm_opening_hours is None

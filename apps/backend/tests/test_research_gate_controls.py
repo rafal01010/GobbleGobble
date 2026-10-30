@@ -97,6 +97,9 @@ async def test_failed_sdk_response_preserves_completed_sibling(failure):
     )
     assert second.status == "incomplete"
     assert second.reason is not None
+    if failure == "incomplete":
+        assert second.reason == "response_limit"
+        assert calls.research_budget.records[-1].outcome == "response_limit"
     assert second.contributions == first.contributions
     assert len(calls.receipts) == 2
 

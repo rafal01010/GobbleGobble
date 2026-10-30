@@ -15,6 +15,7 @@ from app.schemas.evidence import (
     AvailableReviews,
     EvidenceCollection,
     GoogleOrigin,
+    GoogleReviewLocator,
     ZeroReviews,
 )
 
@@ -105,6 +106,17 @@ class ResearchTools:
                 raise ValueError("ephemeral evidence ID exceeds limit")
             if not set(ephemeral.place_ids) <= self._place_ids:
                 raise ValueError("ephemeral evidence exceeds scope")
+
+    @property
+    def snapshot_id(self) -> str:
+        return self._snapshot_id
+
+    @property
+    def search_id(self) -> str:
+        return self._search.search_id
+
+    def matches_ephemeral(self, collection: EvidenceCollection) -> bool:
+        return self._ephemeral is not None and self._ephemeral == collection
 
     def _now(self) -> datetime:
         now = self._clock()
@@ -338,6 +350,101 @@ class ResearchTools:
         payload["next_offset"] = low if low < len(item.statement) else None
         payload["omitted_characters"] = len(item.statement) - low
         return payload
+
+    def review_freshness(self, place_id: str, review_id: str) -> str:
+        """Check the bound review evidence without exposing its content."""
+        if place_id not in self._place_ids or self._ephemeral is None:
+            return "freshness_unknown"
+        matches = [
+            item
+            for item in self._ephemeral.evidence
+            if place_id in item.subject_place_ids
+            and isinstance(item.locator, GoogleReviewLocator)
+            and item.locator.review_id == review_id
+        ]
+        if len(matches) != 1:
+            return "freshness_unknown"
+        result = self.read_ephemeral_evidence(
+            TextInput(place_id=place_id, item_id=matches[0].evidence_id, offset=0)
+        )
+        return str(result.get("status", "unavailable"))
+
+    def review_binding(
+        self,
+        place_id: str,
+        review_id: str,
+        *,
+        feature_id: str,
+        source_url: str,
+        link_basis: str,
+        text: str | None,
+        author_name: str | None = None,
+        author_url: str | None = None,
+    ) -> str:
+        """Check a supplied sample against scoped source identity and evidence."""
+        if place_id not in self._place_ids or self._ephemeral is None or not text:
+            return "freshness_unknown"
+        matches = [
+            item
+            for item in self._ephemeral.evidence
+            if place_id in item.subject_place_ids
+            and isinstance(item.locator, GoogleReviewLocator)
+            and item.locator.review_id == review_id
+        ]
+        if len(matches) != 1:
+            return "freshness_unknown"
+        item = matches[0]
+        locator = item.locator
+        if not isinstance(locator, GoogleReviewLocator):
+            return "freshness_unknown"
+        source = next(
+            s for s in self._ephemeral.sources if s.source_id == item.source_id
+        )
+        if (
+            not isinstance(source.origin, GoogleOrigin)
+            or locator.branch.feature_id != feature_id
+            or source.origin.branch.feature_id != feature_id
+            or locator.source_url != source_url
+            or locator.link_basis != link_basis
+            or item.statement != text
+        ):
+            return "source_mismatch"
+        item_authors = [
+            attribution
+            for attribution in self._ephemeral.attributions
+            if attribution.kind == "author"
+            and attribution.attribution_id in item.attribution_ids
+        ]
+        authors = item_authors or [
+            attribution
+            for attribution in self._ephemeral.attributions
+            if attribution.kind == "author"
+            and attribution.attribution_id in source.attribution_ids
+        ]
+        if authors and all(
+            (
+                author.name is not None
+                and author_name is not None
+                and author.name != author_name
+            )
+            or (
+                author.url is not None
+                and author_url is not None
+                and author.url != author_url
+            )
+            for author in authors
+        ):
+            return "source_mismatch"
+        if source.policy.derived_output.decision != "allowed":
+            return "restricted"
+        try:
+            require_source_use(("public_google_reviews",), "model", material="derived")
+        except SourceUseDenied:
+            return "restricted"
+        result = self.read_ephemeral_evidence(
+            TextInput(place_id=place_id, item_id=item.evidence_id, offset=0)
+        )
+        return str(result.get("status", "unavailable"))
 
     def read_review_context(self, request: LookupInput) -> dict[str, object]:
         request = LookupInput.model_validate(request)

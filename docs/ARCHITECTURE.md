@@ -1,6 +1,6 @@
 # Architecture
 
-GobbleGobble uses a Python backend, SvelteKit frontend and SQLite on one local host. The current implementation has a visual shell, typed contracts, durable run infrastructure and bounded provider probes. Real research is not connected to admitted searches, and recommendation publication, refinement and recovery remain incomplete.
+GobbleGobble uses a Python backend, SvelteKit frontend and SQLite on one local host. The current implementation has a visual shell, typed contracts, durable run infrastructure and a bounded recommendation owner. Real research is not connected to admitted searches. Publication and refinement remain incomplete.
 
 ## Components and ownership
 
@@ -23,6 +23,9 @@ GobbleGobble uses a Python backend, SvelteKit frontend and SQLite on one local h
 | `apps/backend/app/review_selection.py` | Tries Google reviews first and selects bounded independent web fallback using caller-vetted domains. |
 | `apps/backend/app/agents/probe.py` | Bounded Agents SDK owner/research experiment. |
 | `apps/backend/app/agents/research.py` | Registered place research tool over matched review samples and optional scoped evidence lookup. |
+| `apps/backend/app/agents/owner.py` | Configures the recommendation owner and binds scoped research, evidence, food claims and geographic tools. |
+| `apps/backend/app/agents/owner_draft.py` | Converts the model-facing draft into server-bound recommendation contracts. |
+| `apps/backend/app/agents/owner_execution.py` | Reserves final-composition capacity, closes research and permits one bounded recovery. |
 | `apps/backend/app/core/` | Configuration, request bounds and safe receipts. |
 
 The backend owns secrets, precise request locations, execution limits and durable state. Browser IDs do not authenticate requests. A server-issued anonymous credential owns searches; run operations also check membership in that search. One current worker lease fences mutations against fresh database time. Transactions close before external work, waiting or streaming.
@@ -47,7 +50,7 @@ Keep one main task prominent and reveal details when needed. Normal screens use 
 
 ## Context and completion requirements
 
-The research specialist has attempt-scoped request and tool limits and checks an estimate of the complete next SDK request. The estimate counts UTF-8 bytes, reserves output capacity and includes a fixed margin. It is not a provider token count or a guarantee that a request fits the provider's context window. The estimate and observed token usage are recorded separately. Initial review samples are reduced to fit, with a continuation index for deferred reviews. Requests that cannot fit stop with a context-limit outcome; completed sibling contributions remain available. Hosted web research and the specialist share the same allowance. The accounting records executed tool names and outcomes without source text. Full context reconstruction and final-response recovery remain incomplete.
+The research specialist has attempt-scoped request and tool limits and checks an estimate of the complete next SDK request. The estimate counts UTF-8 bytes, reserves output capacity and includes a fixed margin. It is not a provider token count or a guarantee that a request fits the provider's context window. The estimate and observed token usage are recorded separately. Initial review samples are reduced to fit, with a continuation index for deferred reviews. Requests that cannot fit stop with a context-limit outcome; completed sibling contributions remain available. Hosted web research and the specialist share the same allowance. The accounting records executed tool names and outcomes without source text. The owner shares the attempt allowance with its tools and reserves a request, context and time for composition. As retained evidence grows, the owner increases that reserve or closes research with a deferred-source marker. It compacts long review bodies when needed and keeps their review IDs. A malformed final response can use at most one affordable tools-free recovery. These controls have local SDK tests but are not connected to admitted searches or verified through the browser.
 
 Permitted research snapshots are reusable state; SDK history is a temporary view. Preserve stable search/place/branch/source identities, favorable food findings, complaints, qualifications, conflicts, viable alternatives and material omission status. A retained source ID alone does not prove the evidence reached the model. Restricted or expired content must be reacquired or marked unavailable, including content embedded in summaries or checkpoints.
 

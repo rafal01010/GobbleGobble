@@ -50,12 +50,21 @@ async def collect_candidate_reviews(
     client: GoogleReviewClient,
     *,
     limits: ReviewLimits | None = None,
+    source_website: str | None = None,
 ) -> CandidateReview:
     """Collect a sample from supplied Google branch candidates, without discovery."""
     if not place.name:
         return CandidateReview(place.place_id, "no_match", "missing_place_name")
     matched = match_branch(
-        BranchQuery(name=place.name, full_address=place.location.formatted_address),
+        BranchQuery(
+            name=place.name,
+            full_address=place.location.formatted_address,
+            website=source_website,
+            coordinates=(
+                place.location.coordinates.latitude,
+                place.location.coordinates.longitude,
+            ),
+        ),
         google_candidates,
     )
     if isinstance(matched, NoConfidentMatch):
@@ -103,7 +112,11 @@ class PrimaryReviewClient:
         self._reviews = GoogleReviewClient(calls, test_transport=test_transport)
 
     async def collect(
-        self, place: Place, *, limits: ReviewLimits | None = None
+        self,
+        place: Place,
+        *,
+        limits: ReviewLimits | None = None,
+        source_website: str | None = None,
     ) -> CandidateReview:
         if not place.name or not place.location.formatted_address:
             return CandidateReview(
@@ -148,7 +161,11 @@ class PrimaryReviewClient:
                 lookup_receipt=lookup.receipt,
             )
         result = await collect_candidate_reviews(
-            place, lookup.value.candidates, self._reviews, limits=limits
+            place,
+            lookup.value.candidates,
+            self._reviews,
+            limits=limits,
+            source_website=source_website,
         )
         return replace(result, lookup_receipt=lookup.receipt)
 

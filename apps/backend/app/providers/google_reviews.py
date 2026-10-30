@@ -3,7 +3,9 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import math
 import re
+import unicodedata
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -89,6 +91,7 @@ class BranchQuery:
     full_address: str | None = field(default=None, repr=False)
     website: str | None = field(default=None, repr=False)
     feature_id: str | None = field(default=None, repr=False)
+    coordinates: tuple[float, float] | None = field(default=None, repr=False)
 
 
 @dataclass(frozen=True)
@@ -100,6 +103,7 @@ class BranchCandidate:
     website: str | None = field(default=None, repr=False)
     rating: float | None = field(default=None, repr=False)
     reported_total: int | None = field(default=None, repr=False)
+    coordinates: tuple[float, float] | None = field(default=None, repr=False)
 
 
 @dataclass(frozen=True)
@@ -113,7 +117,11 @@ class MatchedBranch:
     reported_total: int | None = field(repr=False)
     evidence: tuple[
         Literal[
-            "exact_name", "exact_full_address", "exact_website", "target_feature_id"
+            "exact_name",
+            "exact_full_address",
+            "exact_website",
+            "target_feature_id",
+            "address_and_coordinates",
         ],
         ...,
     ]
@@ -273,6 +281,9 @@ def _website(value: str | None) -> str:
             or not url.hostname
             or url.username
             or url.password
+            or url.port not in {None, 80 if url.scheme == "http" else 443}
+            or url.query
+            or url.fragment
         ):
             return ""
         return url.hostname.casefold().removeprefix("www.") + url.path.rstrip("/")
@@ -311,14 +322,95 @@ def _url_identity(value: str) -> tuple[str | None, int | None]:
     return feature, cid
 
 
+def _corroborated_address(query: BranchQuery, candidate: BranchCandidate) -> bool:
+    if not query.full_address or not candidate.full_address:
+        return False
+    if query.coordinates is None or candidate.coordinates is None:
+        return False
+    points = (query.coordinates, candidate.coordinates)
+    if any(
+        not isinstance(p, tuple)
+        or len(p) != 2
+        or any(type(n) not in (int, float) or not math.isfinite(n) for n in p)
+        or abs(p[0]) > 90
+        or abs(p[1]) > 180
+        for p in points
+    ):
+        raise ReviewInputError()
+    lat1, lon1 = map(math.radians, query.coordinates)
+    lat2, lon2 = map(math.radians, candidate.coordinates)
+    a = (
+        math.sin((lat2 - lat1) / 2) ** 2
+        + math.cos(lat1) * math.cos(lat2) * math.sin((lon2 - lon1) / 2) ** 2
+    )
+    if 12742000 * math.asin(min(1.0, math.sqrt(a))) > 25:
+        return False
+    left, right = (
+        unicodedata.normalize("NFKC", v).casefold().replace("−", "-")
+        for v in (query.full_address, candidate.full_address)
+    )
+    left_segments = [part.strip() for part in left.split(",")]
+    right_segments = [part.strip() for part in right.split(",")]
+    block = r"(\d+)\s*chome\s*-\s*(\d+)\s*-\s*(\d+)"
+    postal = r"(\d{3}-\d{4})"
+    if len(left_segments) == 5 and len(right_segments) == 6:
+        left_block = re.fullmatch(block + r"\s+([a-z]+)", left_segments[0])
+        right_block = re.fullmatch(block, right_segments[5])
+        left_region = re.fullmatch(r"([a-z]+)\s+" + postal, left_segments[3])
+        right_region = re.fullmatch(r"〒?" + postal + r"\s+([a-z]+)", right_segments[1])
+        if left_block and right_block and left_region and right_region:
+            return bool(
+                left_block.groups()[:3] == right_block.groups()
+                and left_block.group(4) == right_segments[4]
+                and left_segments[1] == right_segments[3]
+                and left_segments[2] == right_segments[2]
+                and left_region.group(1) == right_region.group(2)
+                and left_region.group(2) == right_region.group(1)
+                and left_segments[4] == right_segments[0] == "japan"
+            )
+
+    site = _website(query.website)
+    if not site or site != _website(candidate.website):
+        return False
+    if len(left_segments) == 5:
+        left_segments = left_segments[1:]
+    if len(left_segments) != 4 or len(right_segments) < 4:
+        return False
+    street = re.fullmatch(
+        r"(\d+)\s+([a-z]+\s+[a-z]+)\s+(avenue|ave)\s+(extension|ext)",
+        left_segments[0],
+    )
+    region = re.fullmatch(r"(\d{4})\s+([a-z]+\s+[a-z]+)", left_segments[2])
+    if not street or not region or not re.fullmatch(r"[a-z]+", left_segments[1]):
+        return False
+    right_street = re.fullmatch(
+        r"(\d{4})\s+([a-z]+\s+[a-z]+)\s+(avenue|ave)\s+(extension|ext)",
+        right_segments[-3],
+    )
+    return bool(
+        right_street
+        and right_segments[0] == street.group(1)
+        and right_street.group(1) == region.group(1)
+        and right_street.group(2) == street.group(2)
+        and right_segments[-2] == left_segments[1] + " city"
+        and right_segments[-1] == region.group(2)
+        and left_segments[3] == "philippines"
+        and all(
+            not re.search(r"\d|\b(?:unit|suite|floor)\b", part)
+            for part in right_segments[1:-3]
+        )
+    )
+
+
 def match_branch(
     query: BranchQuery, candidates: tuple[BranchCandidate, ...]
 ) -> MatchedBranch | NoConfidentMatch:
     """Corroborate supplied Google candidates. This performs no discovery.
 
-    Exact names and full addresses are deliberately strict. Website-only chain
-    matches require an explicitly targeted full feature ID as well. Supplied
-    metadata is evidence from the caller, not newly fetched Google metadata.
+    Names must match. Exact addresses or narrowly recognized address anchors
+    and independently supplied nearby coordinates corroborate a branch. Website
+    matching also needs an explicitly targeted feature ID. Metadata comes from
+    the caller and is not refreshed by review retrieval.
     """
     if type(query) is not BranchQuery or not _text(query.name) or len(query.name) > 500:
         raise ReviewInputError()
@@ -372,14 +464,22 @@ def match_branch(
         address_matches = bool(query.full_address) and _normalized(
             query.full_address
         ) == _normalized(candidate.full_address)
+        corroborated = not address_matches and _corroborated_address(query, candidate)
         site_matches = bool(_website(query.website)) and _website(
             query.website
         ) == _website(candidate.website)
-        if (query.full_address and candidate.full_address and not address_matches) or (
-            query.website and candidate.website and not site_matches
-        ):
+        if (
+            query.full_address
+            and candidate.full_address
+            and not address_matches
+            and not corroborated
+        ) or (query.website and candidate.website and not site_matches):
             return NoConfidentMatch("conflicting_identity")
-        if not address_matches and not (site_matches and feature == target_id):
+        if (
+            not address_matches
+            and not corroborated
+            and not (site_matches and feature == target_id)
+        ):
             continue
         if (
             candidate.rating is not None
@@ -397,11 +497,17 @@ def match_branch(
             raise ReviewInputError()
         evidence: list[
             Literal[
-                "exact_name", "exact_full_address", "exact_website", "target_feature_id"
+                "exact_name",
+                "exact_full_address",
+                "exact_website",
+                "target_feature_id",
+                "address_and_coordinates",
             ]
         ] = ["exact_name"]
         if address_matches:
             evidence.append("exact_full_address")
+        if corroborated:
+            evidence.append("address_and_coordinates")
         if site_matches:
             evidence.append("exact_website")
         if target_id == feature:

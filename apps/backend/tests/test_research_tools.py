@@ -389,3 +389,152 @@ def test_missing_freshness_returns_unknown_without_content(setup):
     assert research.read_finding(LookupInput(place_id="branch_a", item_id=handle)) == {
         "status": "freshness_unknown"
     }
+
+
+def test_review_freshness_is_scoped_and_checked_on_each_read(setup):
+    from datetime import UTC, datetime
+
+    conn, search, _, collection = setup
+    instant = [datetime(2026, 10, 30, tzinfo=UTC)]
+    research = ResearchTools(
+        conn,
+        search,
+        "snap",
+        place_ids=("branch_a", "branch_b"),
+        max_content_bytes=4096,
+        ephemeral=collection,
+        source_classes={"src_google": "public_google_reviews"},
+        clock=lambda: instant[0],
+    )
+    assert research.review_freshness("branch_a", "secret") == "available"
+    assert research.review_freshness("branch_b", "secret") == "freshness_unknown"
+    assert research.review_freshness("branch_a", "missing") == "freshness_unknown"
+    instant[0] = datetime(2026, 12, 1, tzinfo=UTC)
+    assert research.review_freshness("branch_a", "secret") == "stale"
+
+
+def test_duplicate_review_ids_in_one_branch_are_ambiguous(setup):
+
+    conn, search, _, collection = setup
+    original = next(
+        item for item in collection.evidence if item.evidence_id == "ev_google"
+    )
+    duplicate = original.model_copy(update={"evidence_id": "ev_ambiguous"})
+    ambiguous = collection.model_copy(
+        update={"evidence": (*collection.evidence, duplicate)}
+    )
+    research = ResearchTools(
+        conn,
+        search,
+        "snap",
+        place_ids=("branch_a", "branch_b"),
+        clock=lambda: datetime(2026, 10, 30, tzinfo=UTC),
+        max_content_bytes=1024,
+        ephemeral=ambiguous,
+        source_classes={"src_google": "public_google_reviews"},
+    )
+    assert research.review_freshness("branch_a", "secret") == "freshness_unknown"
+    assert research.review_freshness("branch_b", "secret") == "freshness_unknown"
+
+
+def test_review_permission_revocation_applies_to_next_read(setup, monkeypatch):
+    from dataclasses import replace
+
+    from app.core import source_policy
+
+    research = tools(setup)
+    assert research.review_freshness("branch_a", "secret") == "available"
+    monkeypatch.setattr(
+        source_policy,
+        "POLICIES",
+        dict(source_policy.POLICIES)
+        | {
+            "public_google_reviews": replace(
+                source_policy.POLICIES["public_google_reviews"], model=False
+            )
+        },
+    )
+    assert research.review_freshness("branch_a", "secret") == "restricted"
+
+
+def test_review_author_binding_detects_conflicts_and_accepts_missing_attribution(setup):
+    from app.schemas.evidence import Attribution
+
+    conn, search, _, collection = setup
+    evidence = next(
+        item for item in collection.evidence if item.evidence_id == "ev_google"
+    )
+    author = Attribution(
+        attribution_id="author_a",
+        kind="author",
+        name="Alice",
+        url="https://example.com/alice",
+    )
+    item = evidence.model_copy(update={"attribution_ids": ("author_a",)})
+    with_author = collection.model_copy(
+        update={
+            "attributions": (*collection.attributions, author),
+            "evidence": tuple(
+                item if e.evidence_id == "ev_google" else e for e in collection.evidence
+            ),
+        }
+    )
+    research = ResearchTools(
+        conn,
+        search,
+        "snap",
+        place_ids=("branch_a", "branch_b"),
+        clock=lambda: datetime(2026, 10, 30, tzinfo=UTC),
+        max_content_bytes=1024,
+        ephemeral=with_author,
+        source_classes={"src_google": "public_google_reviews"},
+    )
+    kwargs = {
+        "feature_id": "0x1:0x2",
+        "source_url": "https://google.com/SECRET_REVIEW",
+        "link_basis": "review",
+        "text": evidence.statement,
+    }
+    assert (
+        research.review_binding(
+            "branch_a",
+            "secret",
+            **kwargs,
+            author_name="Alice",
+            author_url="https://example.com/alice",
+        )
+        == "available"
+    )
+    assert (
+        research.review_binding(
+            "branch_a",
+            "secret",
+            **kwargs,
+            author_name="Bob",
+            author_url="https://example.com/alice",
+        )
+        == "source_mismatch"
+    )
+    assert (
+        research.review_binding(
+            "branch_a",
+            "secret",
+            **kwargs,
+            author_name="Alice",
+            author_url="https://example.com/bob",
+        )
+        == "source_mismatch"
+    )
+    assert (
+        research.review_binding(
+            "branch_a", "secret", **kwargs, author_name=None, author_url=None
+        )
+        == "available"
+    )
+    unconfirmed = tools(setup)
+    assert (
+        unconfirmed.review_binding(
+            "branch_a", "secret", **kwargs, author_name=None, author_url=None
+        )
+        == "available"
+    )

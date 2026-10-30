@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from collections.abc import Iterator
 from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -11,6 +12,11 @@ from pydantic import BaseModel
 
 if TYPE_CHECKING:
     from app.core.calls import Usage
+
+
+_COMPLETION_DRAW: ContextVar[bool] = ContextVar(
+    "research_completion_draw", default=False
+)
 
 
 class ResearchLimit(Exception):
@@ -35,7 +41,18 @@ class RequestAccounting:
 @dataclass(frozen=True)
 class ToolAccounting:
     name: Literal[
-        "specialist", "list_review_evidence", "read_review_evidence", "web_search"
+        "specialist",
+        "list_review_evidence",
+        "read_review_evidence",
+        "web_search",
+        "list_findings",
+        "list_food_claims",
+        "read_finding",
+        "list_evidence",
+        "read_evidence",
+        "search_nearby",
+        "route_to_place",
+        "research_place_reviews",
     ]
     outcome: Literal["success", "failed"]
 
@@ -84,12 +101,77 @@ class ResearchBudget:
         self.records: list[RequestAccounting] = []
         self.tool_records: list[ToolAccounting] = []
         self.unknown_hosted_reservations: list[int] = []
+        self._completion_protected = False
+        self._completion_usage = 0
+        self._completion_turn = 0
+
+    def protect_completion(self, usage: int) -> None:
+        if self._completion_protected:
+            raise ValueError("completion reserve already configured")
+        if type(usage) is not int or usage <= 0:
+            raise ValueError("completion reserve usage must be positive")
+        if (
+            usage > self.context_limit
+            or self.charged + usage > self.usage_limit
+            or self.turns >= self.max_turns
+        ):
+            raise ValueError("completion reserve exceeds remaining budget")
+        self._completion_usage = usage
+        self._completion_turn = 1
+        self._completion_protected = True
+
+    def grow_completion_reserve(self, usage: int) -> bool:
+        if not self._completion_protected or self._completion_turn == 0:
+            raise ValueError("completion reserve is not active")
+        if type(usage) is not int or usage <= 0:
+            raise ValueError("completion reserve usage must be positive")
+        if usage <= self._completion_usage:
+            return True
+        if usage > self.context_limit or self.charged + usage > self.usage_limit:
+            return False
+        self._completion_usage = usage
+        return True
+
+    def can_research(self) -> bool:
+        return (
+            self.turns + self._completion_turn < self.max_turns
+            and self.tools < self.max_tools
+            and self.charged + self._completion_usage < self.usage_limit
+        )
+
+    def can_complete(self, estimated_usage: int = 0) -> bool:
+        if type(estimated_usage) is not int or estimated_usage < 0:
+            raise ValueError("estimated usage must be nonnegative")
+        return (
+            self.turns < self.max_turns
+            and self.charged + estimated_usage <= self.usage_limit
+            and estimated_usage <= self.context_limit
+        )
+
+    @contextmanager
+    def completion_draw(self) -> Iterator[None]:
+        token = _COMPLETION_DRAW.set(True)
+        try:
+            yield
+        finally:
+            _COMPLETION_DRAW.reset(token)
 
     @contextmanager
     def tool(
         self,
         name: Literal[
-            "specialist", "list_review_evidence", "read_review_evidence", "web_search"
+            "specialist",
+            "list_review_evidence",
+            "read_review_evidence",
+            "web_search",
+            "list_findings",
+            "list_food_claims",
+            "read_finding",
+            "list_evidence",
+            "read_evidence",
+            "search_nearby",
+            "route_to_place",
+            "research_place_reviews",
         ],
     ) -> Iterator[None]:
         if self.tools >= self.max_tools:
@@ -136,11 +218,17 @@ class ResearchBudget:
         estimate = self.estimate(kwargs)
         if estimate + output_tokens > self.context_limit:
             raise ResearchLimit("context_limit")
-        if self.turns >= self.max_turns:
+        completion = _COMPLETION_DRAW.get()
+        reserved_turn = 0 if completion else self._completion_turn
+        reserved_usage = 0 if completion else self._completion_usage
+        if self.turns + reserved_turn >= self.max_turns:
             raise ResearchLimit("turn_limit")
         reservation = estimate + output_tokens
-        if self.charged + reservation > self.usage_limit:
+        if self.charged + reservation + reserved_usage > self.usage_limit:
             raise ResearchLimit("usage_limit")
+        if completion:
+            self._completion_turn = 0
+            self._completion_usage = 0
         self.turns += 1
         self.charged += reservation
         return estimate, output_tokens, deferred

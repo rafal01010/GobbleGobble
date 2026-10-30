@@ -110,6 +110,17 @@ class MealPlaceLead:
     categories: tuple[str, ...] = field(repr=False)
     provenance: Provenance = field(repr=False)
 
+    @property
+    def osm_opening_hours(self) -> str | None:
+        datasource = self.provenance.datasource
+        if not datasource or datasource.get("sourcename") != "openstreetmap":
+            return None
+        raw = datasource.get("raw")
+        if not isinstance(raw, dict):
+            return None
+        value = raw.get("opening_hours")
+        return value if isinstance(value, str) and 0 < len(value) <= 4096 else None
+
 
 type RouteEndpoint = Point | LocationLead | MealPlaceLead
 type RouteMode = Literal["walk", "drive"]

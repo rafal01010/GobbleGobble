@@ -468,3 +468,94 @@ def test_oversized_review_can_be_read_in_bounded_chunks():
         offset = next_offset
     assert "".join(pieces) == original
     assert read_review_chunk(candidate, "wrong")["status"] == "unavailable"
+
+
+@pytest.mark.asyncio
+async def test_bounded_tool_result_keeps_proposals_and_retrievable_review():
+    from dataclasses import replace
+
+    from agents.tool_context import ToolContext
+
+    from app.agents.research import read_review_chunk
+
+    settings, request, candidate = setup_values()
+    review = replace(candidate.sample.reviews[0], text="The noodles were good. " * 200)
+    candidate = replace(candidate, sample=replace(candidate.sample, reviews=(review,)))
+    finding = {
+        "review_label": "r0",
+        "topic": "food",
+        "polarity": "positive",
+        "wording": "paraphrase",
+        "statement": "The noodles were good.",
+        "basis": None,
+    }
+    async with AsyncOpenAI(
+        api_key="synthetic-openai-key",
+        http_client=httpx2.AsyncClient(
+            transport=httpx2.MockTransport(
+                lambda req: httpx2.Response(
+                    200, json=model_response({"findings": [finding] * 12, "gaps": []})
+                )
+            )
+        ),
+        max_retries=0,
+    ) as client:
+        calls = AttemptCalls(settings, Bounds(max_requests=2, total_seconds=5.0))
+        prepared = prepare_review_tool(calls, client, request, candidate)
+        args = '{"question":"Food"}'
+        context = ToolContext(
+            context=None,
+            tool_name=prepared.tool.name,
+            tool_call_id="call",
+            tool_arguments=args,
+        )
+        raw = await prepared.tool.on_invoke_tool(context, args)
+        response = json.loads(raw)
+    assert len(raw.encode()) <= 24000
+    assert len(response["proposals"]) == 12
+    assert response["reacquisition_review_ids"] == [review.review_id]
+    assert any(item["original_review"] is None for item in response["proposals"])
+    assert read_review_chunk(candidate, review.review_id, offset=0)["text"].startswith(
+        "The noodles"
+    )
+    assert len(prepared.contributions[0].proposals) == 12
+
+
+@pytest.mark.asyncio
+async def test_invalid_finding_does_not_discard_valid_sibling():
+    settings, request, candidate = setup_values()
+    valid = {
+        "review_label": "r0",
+        "topic": "food",
+        "polarity": "positive",
+        "wording": "paraphrase",
+        "statement": "The chicken was excellent.",
+        "basis": None,
+    }
+    findings = [
+        valid,
+        {**valid, "review_label": "r999"},
+        {**valid, "wording": "quotation", "statement": "invented quotation"},
+    ]
+    async with AsyncOpenAI(
+        api_key="synthetic-openai-key",
+        http_client=httpx2.AsyncClient(
+            transport=httpx2.MockTransport(
+                lambda req: httpx2.Response(
+                    200, json=model_response({"findings": findings, "gaps": []})
+                )
+            )
+        ),
+        max_retries=0,
+    ) as client:
+        calls = AttemptCalls(settings, Bounds(max_requests=2, total_seconds=5.0))
+        result = await invoke_review_tool(
+            prepare_review_tool(calls, client, request, candidate), "Food"
+        )
+    assert result.status == "available"
+    assert [p.finding.statement for p in result.contributions[0].proposals] == [
+        "The chicken was excellent."
+    ]
+    assert result.contributions[0].gaps == (
+        "2 proposed findings were omitted because their source or wording could not be validated.",
+    )

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import math
-from collections.abc import Awaitable, Callable
-from contextlib import suppress
+from collections.abc import Awaitable, Callable, Iterator
+from contextlib import contextmanager, suppress
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -58,6 +58,7 @@ Outcome = Literal[
     "request_limit",
     "source_blocked",
     "nested_call",
+    "completion_reserved",
 ]
 FailureDiagnostic = Literal[
     "invalid_response",
@@ -97,6 +98,9 @@ Seconds = Annotated[float, Field(gt=0, allow_inf_nan=False)]
 Count = Annotated[int, Field(ge=0)]
 _MODELS = TypeAdapter(ChatModel)
 _IN_TRANSPORT: ContextVar[bool] = ContextVar("in_call_transport", default=False)
+_COMPLETION_SCOPE: ContextVar[tuple[object, asyncio.Task[object]] | None] = ContextVar(
+    "completion_scope", default=None
+)
 
 
 class _Closed(BaseModel):
@@ -237,6 +241,91 @@ class AttemptCalls:
         self._remaining = bounds.max_requests
         self._receipts: list[Receipt] = []
         self._research_budget = research_budget or ResearchBudget()
+        self._completion_reserved = False
+        self._completion_request = 0
+        self._completion_seconds = 0.0
+        self._completion_inflight = False
+
+    def reserve_completion(self, *, seconds: float, usage: int) -> None:
+        self._check_loop()
+        if self._completion_reserved:
+            raise ValueError("completion reserve already configured")
+        if (
+            type(seconds) not in (float, int)
+            or not math.isfinite(seconds)
+            or seconds <= 0
+            or self._loop.time() + seconds >= self._deadline
+            or self._remaining < 1
+        ):
+            raise ValueError("completion reserve exceeds remaining attempt")
+        self._research_budget.protect_completion(usage)
+        self._completion_reserved = True
+        self._completion_request = 1
+        self._completion_seconds = float(seconds)
+
+    def grow_completion_reserve(self, usage: int) -> bool:
+        self._check_loop()
+        if not self._completion_reserved or not self._completion_request:
+            raise ValueError("completion reserve is not active")
+        return self._research_budget.grow_completion_reserve(usage)
+
+    def can_research(self) -> bool:
+        self._check_loop()
+        return (
+            self._remaining > self._completion_request
+            and self._loop.time() < self._deadline - self._completion_seconds
+            and self._research_budget.can_research()
+        )
+
+    def completion_unavailable_reason(self, estimated_usage: int = 0) -> str | None:
+        self._check_loop()
+        if type(estimated_usage) is not int or estimated_usage < 0:
+            raise ValueError("estimated usage must be nonnegative")
+        if self._loop.time() >= self._deadline:
+            return "attempt_timeout"
+        if self._remaining <= 0:
+            return "request_limit"
+        if self._completion_inflight:
+            return "completion_inflight"
+        if estimated_usage > self._research_budget.context_limit:
+            return "context_limit"
+        if self._research_budget.turns >= self._research_budget.max_turns:
+            return "turn_limit"
+        if (
+            self._research_budget.charged + estimated_usage
+            > self._research_budget.usage_limit
+        ):
+            return "usage_limit"
+        return None
+
+    def can_complete(self, estimated_usage: int = 0) -> bool:
+        return self.completion_unavailable_reason(estimated_usage) is None
+
+    @contextmanager
+    def completion(self) -> Iterator[None]:
+        self._check_loop()
+        if not self._completion_reserved:
+            raise ValueError("completion reserve is not configured")
+        if _COMPLETION_SCOPE.get() is not None:
+            raise ValueError("nested completion scope")
+        task = asyncio.current_task()
+        if task is None:
+            raise RuntimeError("completion requires an active task")
+        token = _COMPLETION_SCOPE.set((self, task))
+        try:
+            yield
+        finally:
+            _COMPLETION_SCOPE.reset(token)
+
+    @property
+    def remaining_requests(self) -> int:
+        self._check_loop()
+        return self._remaining
+
+    @property
+    def remaining_seconds(self) -> float:
+        self._check_loop()
+        return max(0.0, self._deadline - self._loop.time())
 
     @property
     def research_budget(self) -> ResearchBudget:
@@ -381,11 +470,32 @@ class AttemptCalls:
                 return Stopped(finish("source_blocked"))
         if started >= self._deadline:
             return Stopped(finish("attempt_timeout"))
+        scope = _COMPLETION_SCOPE.get()
+        completion = bool(
+            scope is not None
+            and scope == (self, asyncio.current_task())
+            and spec.capability == "model"
+            and spec.model_role == "owner"
+            and spec.use == "model_inference"
+        )
+        if scope is not None and (not completion or self._completion_inflight):
+            return Stopped(finish("completion_reserved"))
         if self._remaining == 0:
             return Stopped(finish("request_limit"))
+        research_deadline = self._deadline - self._completion_seconds
+        if not completion and (
+            self._remaining <= self._completion_request or started >= research_deadline
+        ):
+            return Stopped(finish("completion_reserved"))
         self._remaining -= 1
         admitted = True
-        call_deadline = min(started + timeout, self._deadline)
+        if completion:
+            self._completion_request = 0
+            self._completion_inflight = True
+        call_deadline = min(
+            started + timeout, self._deadline if completion else research_deadline
+        )
+        reserve_cutoff = not completion and research_deadline <= started + timeout
         token = _IN_TRANSPORT.set(True)
         parsed: Parsed[T] | None = None
         outcome: Outcome = "failed"
@@ -397,7 +507,11 @@ class AttemptCalls:
                     raise TimeoutError
                 with suppress(Exception):
                     try:
-                        result = await invoke_once(effective_seconds)
+                        if completion:
+                            with self._research_budget.completion_draw():
+                                result = await invoke_once(effective_seconds)
+                        else:
+                            result = await invoke_once(effective_seconds)
                         if (
                             type(result) is not Parsed
                             or (
@@ -432,11 +546,17 @@ class AttemptCalls:
             pass
         finally:
             _IN_TRANSPORT.reset(token)
+            if completion:
+                self._completion_inflight = False
         now = self._loop.time()
         if now >= self._deadline:
             outcome, diagnostic = "attempt_timeout", "none"
         elif now >= call_deadline:
-            outcome, diagnostic = "call_timeout", "none"
+            outcome, diagnostic = (
+                ("completion_reserved", "none")
+                if reserve_cutoff and self._completion_reserved
+                else ("call_timeout", "none")
+            )
         receipt = finish(outcome, diagnostic, parsed)
         if outcome == "success" and parsed is not None:
             return Completed(parsed.value, receipt)
