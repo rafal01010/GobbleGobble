@@ -6,7 +6,7 @@ GobbleGobble is a local app being built to help you choose where to eat now. The
 
 The repository contains a light interface preview and backend foundations for admitting work, saving progress and streaming updates. It also includes a separate diagnostic observer, a controlled worker for testing that lifecycle, and bounded research probes for development.
 
-The local foundation has been exercised through controlled browser jobs, event replay and process restart. The restaurant-search journey is not connected yet. The main page does not submit searches or display food recommendations. Production research, results, refinement and user retry/cancellation are still under development.
+The local foundation has been exercised through controlled browser jobs, event replay and process restart. The restaurant-search journey is not connected yet. The main page does not submit searches or display food recommendations. The backend can run production research and return temporary, source-associated results through the API. Refinement and user retry or cancellation are still under development.
 
 ## Try the interface
 

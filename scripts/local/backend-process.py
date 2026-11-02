@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
-"""Manage local API and explicit diagnostic worker processes."""
+"""Manage local API and worker processes."""
 
 from __future__ import annotations
 
 import argparse
 import fcntl
+import hashlib
 import http.client
 import json
 import os
 import re
 import shutil
 import socket
+import stat
 import subprocess
 import sys
 import time
@@ -45,7 +47,7 @@ def contact(path: Path, command: str) -> dict[str, object] | None:
                 data.extend(chunk)
             result = json.loads(data)
             return result if isinstance(result, dict) else None
-    except (OSError, ValueError):
+    except OSError, ValueError:
         return None
 
 
@@ -62,6 +64,8 @@ def command_for(name: str) -> list[str]:
             "--port",
             "8000",
         ]
+    if name == "live-worker":
+        return [str(PYTHON), "-m", "app.worker", "serve"]
     if name == "frontend":
         node = shutil.which("node")
         if node is None:
@@ -86,6 +90,20 @@ def command_for(name: str) -> list[str]:
     ]
 
 
+def publication_socket() -> Path:
+    identity = hashlib.sha256(str(ROOT).encode()).hexdigest()[:12]
+    directory = Path("/tmp") / f"gg-{os.getuid()}-{identity}"
+    directory.mkdir(mode=0o700, exist_ok=True)
+    info = directory.lstat()
+    if (
+        not stat.S_ISDIR(info.st_mode)
+        or info.st_uid != os.getuid()
+        or stat.S_IMODE(info.st_mode) != 0o700
+    ):
+        raise OSError("publication directory is not private")
+    return directory / "p.sock"
+
+
 def supervise(name: str) -> int:
     socket_path, marker, log = paths(name)
     listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -98,12 +116,16 @@ def supervise(name: str) -> int:
         listener.listen(4)
         listener.settimeout(0.2)
         with log.open("ab", buffering=0) as output:
+            environment = os.environ.copy()
+            if name in ("api", "live-worker"):
+                environment["GG_PUBLICATION_SOCKET"] = str(publication_socket())
             child = subprocess.Popen(
                 command_for(name),
                 cwd=FRONTEND if name == "frontend" else BACKEND,
                 stdin=subprocess.DEVNULL,
                 stdout=output,
                 stderr=subprocess.STDOUT,
+                env=environment,
             )
             while child.poll() is None:
                 try:
@@ -129,7 +151,7 @@ def supervise(name: str) -> int:
                                     {"state": "running", "pid": child.pid}
                                 ).encode()
                             )
-                    except (OSError, UnicodeError):
+                    except OSError, UnicodeError:
                         continue
         return 0
     except OSError:
@@ -244,7 +266,7 @@ def frontend_available() -> bool:
         result = subprocess.run(
             [node, "--version"], capture_output=True, text=True, timeout=3, check=True
         )
-    except (OSError, subprocess.SubprocessError):
+    except OSError, subprocess.SubprocessError:
         return False
     version = re.fullmatch(r"v(\d+)\.(\d+)\.\d+\s*", result.stdout)
     if version is None:
@@ -272,7 +294,7 @@ def listener_owned(pid: int, port: int) -> bool:
             check=False,
         )
         return result.returncode == 0 and str(pid) in result.stdout.splitlines()
-    except (OSError, subprocess.SubprocessError):
+    except OSError, subprocess.SubprocessError:
         return False
 
 
@@ -302,7 +324,7 @@ def ready(name: str, port: int, path: str) -> bool:
             and current.get("pid") == pid
             and listener_owned(pid, port)
         )
-    except (OSError, ValueError, http.client.HTTPException):
+    except OSError, ValueError, http.client.HTTPException:
         return False
     finally:
         connection.close()
@@ -356,7 +378,7 @@ def app_stop() -> int:
         name for name in names if re.fullmatch(r"worker-[0-9a-f]{32}", name)
     )
     failed = False
-    for name in ("frontend", *workers, "api"):
+    for name in ("frontend", "live-worker", *workers, "api"):
         if manage_locked("stop", name) != 0:
             failed = True
     return 1 if failed else 0
@@ -378,10 +400,11 @@ def app(action: str) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Manage the local API or one diagnostic worker."
+        description="Manage the local API and worker processes."
     )
     parser.add_argument(
-        "service", choices=("api", "frontend", "worker", "app", "_supervise")
+        "service",
+        choices=("api", "frontend", "worker", "live-worker", "app", "_supervise"),
     )
     parser.add_argument(
         "action", help="start, status, stop, or internal supervisor identity"
@@ -392,7 +415,7 @@ def main() -> int:
     args = parser.parse_args()
     if args.service == "_supervise":
         if args.run_id is not None or not re.fullmatch(
-            r"api|frontend|worker-[0-9a-f]{32}", args.action
+            r"api|frontend|live-worker|worker-[0-9a-f]{32}", args.action
         ):
             parser.error("invalid supervisor identity")
         return supervise(args.action)
@@ -407,7 +430,7 @@ def main() -> int:
         return app(args.action)
     if args.action not in ("start", "status", "stop"):
         parser.error("action must be start, status, or stop")
-    if args.service in ("api", "frontend"):
+    if args.service in ("api", "frontend", "live-worker"):
         if args.run_id is not None:
             parser.error("service takes no run ID")
         name = args.service

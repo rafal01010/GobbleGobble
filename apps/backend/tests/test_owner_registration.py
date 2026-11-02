@@ -489,3 +489,242 @@ async def test_owner_rejects_distinct_lookup_instance_even_for_same_search_and_s
             candidate_sources={},
         )
     assert prepared.research["branch_a"] is no_nested_lookup
+
+
+@pytest.mark.asyncio
+async def test_owner_admits_only_bound_leads_and_uses_expanded_snapshot(setup):
+    from app.agents.owner import CandidateAdmission
+    from app.agents.owner_draft import validate_owner_draft
+    from app.core.calls import Completed
+    from app.db.session import transaction
+    from app.providers.geoapify import MealPlaceLead, Point, Provenance
+    from app.research_tools import ResearchTools
+
+    settings, request, _ = setup_values()
+    snapshot = setup_snapshot(setup)
+    original_tools = snapshot_tools(setup)
+    connection, search, _, _ = setup
+    old_handle = original_tools._handle("branch_a", "finding_a")
+    new_place = Place(
+        place_id="branch_c",
+        kind="branch",
+        name="New Cafe",
+        location=request.origin.location,
+    )
+    raw = snapshot.model_dump(mode="json")
+    raw["researched_candidates"].append(new_place.model_dump(mode="json"))
+    raw["evidence"]["place_ids"].append("branch_c")
+    expanded = ResearchSnapshot.model_validate_json(json.dumps(raw))
+    with transaction(connection):
+        connection.execute(
+            "INSERT INTO research_candidates (search_id,snapshot_id,place_id,kind,identity_source) VALUES (?,?,?,?,?)",
+            (
+                search.search_id,
+                snapshot.snapshot_id,
+                "branch_c",
+                "branch",
+                "reacquisition_required",
+            ),
+        )
+    expanded_tools = ResearchTools(
+        connection,
+        search,
+        snapshot.snapshot_id,
+        place_ids=("branch_a", "branch_b", "branch_c"),
+        max_content_bytes=4096,
+        ephemeral=expanded.evidence,
+        source_classes={"src_google": "public_google_reviews"},
+    )
+    lead = MealPlaceLead("lead_c", Point(1, 1), "New Cafe", "Address", (), Provenance())
+    calls = AttemptCalls(settings, Bounds(max_requests=4, total_seconds=10))
+    geo = GeoapifyClient(calls)
+
+    async def nearby(*args, **kwargs):
+        return Completed((lead,), None)
+
+    async def admit(item):
+        assert item == lead
+        return CandidateAdmission(
+            "branch_c",
+            expanded,
+            expanded_tools,
+            "geoapify_geography",
+            None,
+            "zero_reviews",
+        )
+
+    geo.nearby_places = nearby
+    async with AsyncOpenAI(api_key="test") as client:
+        owner = prepare_owner(
+            calls,
+            client,
+            request,
+            snapshot,
+            original_tools,
+            geo,
+            {},
+            candidate_sources={"branch_a": "geoapify_geography"},
+            admit_candidate=admit,
+        )
+        tool = next(t for t in owner.agent.tools if t.name == "search_nearby")
+        args = json.dumps({"radius_m": 100, "limit": 1})
+        result = json.loads(await tool.on_invoke_tool(call_context(tool, args), args))
+        assert result == {
+            "status": "available",
+            "leads": [{"place_id": "branch_c", "name": "New Cafe"}],
+        }
+        assert owner.snapshot == expanded
+        rejected = json.loads(await tool.on_invoke_tool(call_context(tool, args), args))
+        assert rejected == {"status": "unavailable", "reason": "tool_failed"}
+        assert owner.snapshot == expanded
+        assert owner.research_tools._handles[old_handle] == ("branch_a", "finding_a")
+        research = next(t for t in owner.agent.tools if t.name == "research_place")
+        args = json.dumps({"place_id": "branch_c", "question": "What do people say?"})
+        assert json.loads(
+            await research.on_invoke_tool(call_context(research, args), args)
+        ) == {"status": "unavailable", "reason": "zero_reviews"}
+        draft = OwnerDraft.model_validate(
+            {
+                "primaries": [
+                    {
+                        "place_id": "branch_c",
+                        "why_to_go": "A new option.",
+                        "food_claim_ids": [],
+                    }
+                ],
+                "runners_up": [],
+                "shortfall_reason": "One option.",
+            }
+        )
+        result = validate_owner_draft(
+            draft,
+            search_id=search.search_id,
+            request=request,
+            snapshot=owner.snapshot,
+            version_id="ver_test",
+        )
+        assert result.versions[0].primaries[0].place_id == "branch_c"
+
+
+@pytest.mark.asyncio
+async def test_route_tool_retains_request_scoped_observation(setup, monkeypatch):
+    from test_foundation import receipt as receipt_fixture
+
+    from app.core.calls import Completed
+    from app.providers.geoapify import Point, Provenance, RouteAvailable
+
+    receipt = receipt_fixture.__wrapped__()
+
+    settings, request, _ = setup_values()
+    snapshot = setup_snapshot(setup)
+    destination = snapshot.researched_candidates[0].location.coordinates
+    origin = request.origin.location.coordinates
+    route = RouteAvailable(
+        Point(origin.latitude, origin.longitude),
+        Point(destination.latitude, destination.longitude),
+        request.travel.mode,
+        300.0,
+        250.0,
+        Provenance("{}"),
+    )
+
+    async def get_route(self, *args, **kwargs):
+        return Completed(route, receipt.model_copy(update={"capability": "route"}))
+
+    monkeypatch.setattr(GeoapifyClient, "route", get_route)
+    async with AsyncOpenAI(api_key="synthetic-openai-key", max_retries=0) as client:
+        calls = AttemptCalls(settings, Bounds(max_requests=3, total_seconds=5.0))
+        owner = prepare_owner(
+            calls,
+            client,
+            request,
+            snapshot,
+            snapshot_tools(setup),
+            GeoapifyClient(calls),
+            {},
+            candidate_sources={"branch_a": "geoapify_geography"},
+        )
+        tool = next(t for t in owner.agent.tools if t.name == "route_to_place")
+        args = json.dumps({"place_id": "branch_a"})
+        result = json.loads(await tool.on_invoke_tool(call_context(tool, args), args))
+    assert result["duration_seconds"] == 300.0
+    assert owner.scope.routes["branch_a"].route == route
+    assert owner.scope.routes["branch_a"].constraint == request.travel
+
+
+@pytest.mark.asyncio
+async def test_owner_assesses_findings_with_same_attempt_and_bound_review(setup):
+    settings, request, review = setup_values()
+    sample = review.sample
+    matching = replace(
+        sample.reviews[0],
+        review_id="secret",
+        link_basis="review",
+        author_name=None,
+        author_url=None,
+        text="The chicken was excellent, but service was slow. 私はまた行きたい。",
+        source_url="https://google.com/SECRET_REVIEW",
+    )
+    review = replace(review, sample=replace(sample, reviews=(matching,)))
+    snapshot = setup_snapshot(setup)
+    research_tools = snapshot_tools(setup)
+    responses = iter(
+        [
+            model_response(
+                {
+                    "findings": [
+                        {
+                            "review_label": "r0",
+                            "topic": "service",
+                            "polarity": "negative",
+                            "wording": "paraphrase",
+                            "statement": "Service was slow.",
+                            "basis": None,
+                        }
+                    ],
+                    "gaps": [],
+                }
+            ),
+            model_response(
+                {
+                    "decisions": [
+                        {
+                            "proposal_id": "p0",
+                            "review_label": "r0",
+                            "verdict": "supported",
+                            "rationale": "The review says so.",
+                        }
+                    ]
+                }
+            ),
+        ]
+    )
+    async with AsyncOpenAI(
+        api_key="synthetic-openai-key",
+        http_client=httpx2.AsyncClient(
+            transport=httpx2.MockTransport(
+                lambda req: httpx2.Response(200, json=next(responses))
+            )
+        ),
+        max_retries=0,
+    ) as client:
+        calls = AttemptCalls(settings, Bounds(max_requests=4, total_seconds=5.0))
+        specialist = prepare_review_tool(calls, client, request, review)
+        owner = prepare_owner(
+            calls,
+            client,
+            request,
+            snapshot,
+            research_tools,
+            GeoapifyClient(calls),
+            {"branch_a": specialist},
+            candidate_sources={"branch_a": "geoapify_geography"},
+            assess_review_findings=True,
+        )
+        tool = next(item for item in owner.agent.tools if item.name == "research_place")
+        args = json.dumps({"place_id": "branch_a", "question": "What did diners say?"})
+        output = json.loads(await tool.on_invoke_tool(call_context(tool, args), args))
+    assert output["proposals"][0]["support"] == "unverified"
+    assert len(owner.scope.assessments) == 1
+    assert owner.scope.assessments[0][2].decisions[0].verdict == "supported"
+    assert len(calls.receipts) == 2

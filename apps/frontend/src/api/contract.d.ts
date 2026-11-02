@@ -720,6 +720,89 @@ export interface components {
             provider: components["schemas"]["app__schemas__search__NonBlankText__2"];
             provider_id: components["schemas"]["app__schemas__search__NonBlankText__2"];
         };
+        /** PublicFinding */
+        PublicFinding: {
+            /** Basis */
+            basis?: string | null;
+            /** Polarity */
+            polarity: string | null;
+            /** Qualification */
+            qualification: string;
+            /** Sources */
+            sources: components["schemas"]["PublicSource"][];
+            /** Statement */
+            statement: string;
+            /** Topic */
+            topic?: string | null;
+            /** Wording */
+            wording?: string | null;
+        };
+        /** PublicPlace */
+        PublicPlace: {
+            /** Explanation */
+            explanation: string;
+            /**
+             * Findings
+             * @default []
+             */
+            findings: components["schemas"]["PublicFinding"][];
+            /**
+             * Gaps
+             * @default []
+             */
+            gaps: string[];
+            /** Name */
+            name: string;
+            /**
+             * Review Samples
+             * @default []
+             */
+            review_samples: components["schemas"]["PublicReviewSample"][];
+            /** Sources */
+            sources: components["schemas"]["PublicSource"][];
+        };
+        /** PublicRecommendations */
+        PublicRecommendations: {
+            /** Primaries */
+            primaries: components["schemas"]["PublicPlace"][];
+            /** Runners Up */
+            runners_up: components["schemas"]["PublicPlace"][];
+            /** Travel Unconfirmed */
+            travel_unconfirmed: components["schemas"]["PublicPlace"][];
+        };
+        /** PublicReviewSample */
+        PublicReviewSample: {
+            /** Assessed Count */
+            assessed_count: number;
+            /** Partial */
+            partial: boolean;
+            /** Qualification */
+            qualification: string;
+            /** Reported Total */
+            reported_total: number | null;
+            /** Sample Size */
+            sample_size: number;
+        };
+        /** PublicRunResponse */
+        PublicRunResponse: {
+            /** Display Version Id */
+            display_version_id?: string | null;
+            /** Progress Message */
+            progress_message: string;
+            recommendations?: components["schemas"]["PublicRecommendations"] | null;
+            /** Result Status */
+            result_status?: ("available" | "unavailable") | null;
+            run: components["schemas"]["RunSnapshot"];
+        };
+        /** PublicSource */
+        PublicSource: {
+            /** Authors */
+            authors: string[];
+            /** Publisher */
+            publisher: string;
+            /** Url */
+            url: string;
+        };
         /** QueuedEvent */
         QueuedEvent: {
             /**
@@ -1475,7 +1558,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RunReadResponse"];
+                    "application/json": components["schemas"]["PublicRunResponse"];
                 };
             };
             /** @description Bad Request */

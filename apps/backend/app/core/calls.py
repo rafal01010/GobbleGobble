@@ -229,6 +229,8 @@ class AttemptCalls:
         bounds: Bounds,
         *,
         research_budget: ResearchBudget | None = None,
+        on_admit: Callable[[UUID, CallSpec, datetime], None] | None = None,
+        on_receipt: Callable[[Receipt], None] | None = None,
     ) -> None:
         from app.agents.research_budget import ResearchBudget
 
@@ -240,6 +242,8 @@ class AttemptCalls:
         self._settings = settings
         self._remaining = bounds.max_requests
         self._receipts: list[Receipt] = []
+        self._on_admit = on_admit
+        self._on_receipt = on_receipt
         self._research_budget = research_budget or ResearchBudget()
         self._completion_reserved = False
         self._completion_request = 0
@@ -447,6 +451,8 @@ class AttemptCalls:
             )
             if admitted:
                 self._receipts.append(receipt)
+                if self._on_receipt is not None:
+                    self._on_receipt(receipt)
             return receipt
 
         if _IN_TRANSPORT.get():
@@ -487,6 +493,8 @@ class AttemptCalls:
             self._remaining <= self._completion_request or started >= research_deadline
         ):
             return Stopped(finish("completion_reserved"))
+        if self._on_admit is not None:
+            self._on_admit(request_id, spec, started_at)
         self._remaining -= 1
         admitted = True
         if completion:

@@ -244,3 +244,67 @@ async def test_contrast_personal_quote_and_japanese_reach_assessment_together():
     assert all(
         item.finding.review_label == "r0" for item in result.contributions[0].proposals
     )
+
+
+def test_promotion_keeps_supported_branch_findings_and_omits_other_decisions():
+    from datetime import UTC, datetime
+
+    from app.agents.research_assessment import (
+        SourceAssessment,
+        SourceDecision,
+        promote_assessed_reviews,
+    )
+    from app.evidence_projection import project_evidence
+    from app.review_evidence import append_review_evidence
+    from app.schemas.evidence import EvidenceCollection
+
+    _, _, source = setup_values()
+    initial = append_review_evidence(
+        EvidenceCollection(place_ids=(source.place_id,)), source, now=datetime.now(UTC)
+    )
+    original = contribution(source)
+    negative = replace(
+        original.proposals[0],
+        finding=original.proposals[0].finding.model_copy(
+            update={"statement": "The chicken was cold.", "topic": "food"}
+        ),
+    )
+    proposed = replace(original, proposals=(*original.proposals, negative))
+    assessed = SourceAssessment(
+        "assessed",
+        (
+            SourceDecision(
+                proposal_id="p0",
+                review_label="r0",
+                verdict="supported",
+                rationale="Supported.",
+            ),
+            SourceDecision(
+                proposal_id="p1",
+                review_label="r0",
+                verdict="unsupported",
+                rationale="Contradicted.",
+            ),
+        ),
+        2,
+        0,
+    )
+    result = promote_assessed_reviews(initial, source, proposed, assessed)
+    assert (result.supported, result.unsupported, result.unclear) == (1, 1, 0)
+    assert result.collection.review_assessments[0].google.sample.assessed_count == 1
+    projection = project_evidence(
+        result.collection,
+        source.place_id,
+        source_classes={
+            result.collection.sources[0].source_id: "public_google_reviews"
+        },
+        now=datetime.now(UTC),
+    )
+    assert [item.statement for item in projection.reviews] == [
+        "The reviewer found the service slow."
+    ]
+    assert projection.reviews[0].citations[0].author == "A"
+    with pytest.raises(ValueError, match="review source mismatch"):
+        promote_assessed_reviews(
+            initial, replace(source, place_id="branch_b"), proposed, assessed
+        )

@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from app.core.source_policy import require_source_use
 from app.db.evidence import StoredFinding, lookup_fresh_evidence
+from app.db.leases import LeaseClaim
 from app.db.ownership import OwnedSearch
 
 _IDENTIFIER = re.compile(r"[A-Za-z0-9_-]{1,128}\Z")
@@ -376,3 +377,65 @@ def lookup_snapshot_finding(
     if handle.finding_id in lookup.unknown_findings:
         return FindingLookup("freshness_unknown", None)
     raise ValueError("snapshot finding no longer available")
+
+
+def append_candidate_for_lease(
+    connection: sqlite3.Connection,
+    search: OwnedSearch,
+    snapshot_id: str,
+    candidate: SnapshotCandidate,
+    claim: LeaseClaim,
+) -> None:
+    """Append one validated candidate while the run's worker owns its lease."""
+    from uuid import uuid4
+
+    from app.db import leases
+    from app.db.leases import LeaseLost, _claim_digest, _owned_running
+
+    if not connection.in_transaction:
+        raise sqlite3.ProgrammingError("snapshot writes require a transaction")
+    current = _owned_running(connection, claim)
+    lease = connection.execute(
+        "SELECT 1 FROM run_leases WHERE run_id=? AND attempt_id=? AND worker_id=? "
+        f"AND credential_digest=? AND expires_at_ms > {leases._NOW_MS}",
+        (claim.run_id, claim.attempt_id, claim.worker_id, _claim_digest(claim)),
+    ).fetchone()
+    if lease is None:
+        raise LeaseLost()
+    if current.snapshot.search_id != search.search_id:
+        raise ValueError("worker search differs from snapshot")
+    if (
+        connection.execute(
+            "SELECT 1 FROM research_snapshots WHERE search_id=? AND snapshot_id=?",
+            (search.search_id, snapshot_id),
+        ).fetchone()
+        is None
+    ):
+        raise ValueError("unknown snapshot")
+    temporary_id = f"temporary_{uuid4().hex}"
+    store_snapshot(
+        connection, search, temporary_id, candidates=(candidate,), findings=()
+    )
+    connection.execute(
+        "INSERT INTO research_candidates (search_id, snapshot_id, place_id, kind, name, parent_place_id, identity_source, latitude, longitude, timezone) "
+        "SELECT search_id, ?, place_id, kind, name, parent_place_id, identity_source, latitude, longitude, timezone "
+        "FROM research_candidates WHERE search_id=? AND snapshot_id=?",
+        (snapshot_id, search.search_id, temporary_id),
+    )
+    connection.execute(
+        "INSERT INTO research_gaps (search_id, snapshot_id, place_id, reason) "
+        "SELECT search_id, ?, place_id, reason FROM research_gaps WHERE search_id=? AND snapshot_id=?",
+        (snapshot_id, search.search_id, temporary_id),
+    )
+    connection.execute(
+        "DELETE FROM research_gaps WHERE search_id=? AND snapshot_id=?",
+        (search.search_id, temporary_id),
+    )
+    connection.execute(
+        "DELETE FROM research_candidates WHERE search_id=? AND snapshot_id=?",
+        (search.search_id, temporary_id),
+    )
+    connection.execute(
+        "DELETE FROM research_snapshots WHERE search_id=? AND snapshot_id=?",
+        (search.search_id, temporary_id),
+    )

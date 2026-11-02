@@ -23,9 +23,30 @@ from app.agents.owner_draft import OwnerDraft, validate_owner_draft
 from app.agents.probe import _AdmissionStopped, _RecordedModel
 from app.agents.research import guard_review_context
 from app.core.calls import AttemptCalls, Receipt
-from app.core.source_policy import SourceUseDenied, require_source_use
+from app.core.source_policy import Source, SourceUseDenied, require_source_use
 from app.research_tools import LookupInput, TextInput
 from app.schemas.recommendations import RecommendationCollection
+
+
+@dataclass(frozen=True)
+class OwnerInputLineage:
+    """Provenance state for the full sequence that influenced an owner output."""
+
+    status: Literal["unknown"] = field(default="unknown", init=False)
+    reason: Literal["model_input_lineage_not_recorded"] = field(
+        default="model_input_lineage_not_recorded", init=False
+    )
+    source_ids: tuple[str, ...] = field(default=(), repr=False)
+    evidence_ids: tuple[str, ...] = field(default=(), repr=False)
+    source_classes: tuple[Source, ...] = field(default=(), repr=False)
+    model_attempts: int = 0
+    retained_finding_observed: bool = False
+
+
+def require_storable_owner_lineage(lineage: OwnerInputLineage) -> None:
+    """Deny durable storage until complete source lineage is captured and checked."""
+    if type(lineage) is not OwnerInputLineage or lineage.status == "unknown":
+        raise ValueError("owner_input_lineage_unknown")
 
 
 @dataclass(frozen=True)
@@ -38,6 +59,7 @@ class OwnerOutcome:
     recovery_attempted: bool = False
     retained: tuple[dict[str, object], ...] = field(default=(), repr=False)
     deferred_references: tuple[str, ...] = field(default=(), repr=False)
+    lineage: OwnerInputLineage = field(default_factory=OwnerInputLineage, repr=False)
 
 
 @dataclass
@@ -50,6 +72,33 @@ class _OwnerState:
     deferred_references: set[str] = field(default_factory=set, repr=False)
     force_compaction: bool = False
     last_composition_size: int = 0
+    lineage_sources: set[str] = field(default_factory=set, repr=False)
+    lineage_evidence: set[str] = field(default_factory=set, repr=False)
+    lineage_classes: set[Source] = field(default_factory=set, repr=False)
+    model_attempts: int = 0
+    retained_finding_observed: bool = False
+
+    def lineage(self) -> OwnerInputLineage:
+        return OwnerInputLineage(
+            source_ids=tuple(sorted(self.lineage_sources)),
+            evidence_ids=tuple(sorted(self.lineage_evidence)),
+            source_classes=tuple(sorted(self.lineage_classes)),
+            model_attempts=self.model_attempts,
+            retained_finding_observed=self.retained_finding_observed,
+        )
+
+
+def _record_lineage_scope(prepared: PreparedOwner, state: _OwnerState) -> None:
+    """Conservatively retain identifiers from all source context in scope."""
+    evidence = prepared.snapshot.evidence
+    classes = prepared.research_tools.lineage_source_classes()
+    state.lineage_sources.update(source.source_id for source in evidence.sources)
+    state.lineage_evidence.update(item.evidence_id for item in evidence.evidence)
+    state.lineage_classes.update(
+        classes.get(source.source_id, "unknown_publisher")
+        for source in evidence.sources
+    )
+    state.lineage_classes.update(prepared.scope.candidate_sources.values())
 
 
 def _compact(value: object, deferred: set[str], *, minimum_bytes: int = 1024) -> object:
@@ -489,6 +538,8 @@ class _OwnerModel(Model):
         conversation_id: str | None = None,
         prompt: ResponsePromptParam | None = None,
     ) -> ModelResponse:
+        _record_lineage_scope(self.prepared, self.state)
+        self.state.model_attempts += 1
         if _refresh_observations(self.prepared, self.state):
             self.state.closed = True
         if (
@@ -669,6 +720,7 @@ def _tools(
                 state.closed = True
                 return _json({"status": "unavailable", "reason": "research_closed"})
             try:
+                _record_lineage_scope(prepared, state)
                 arguments = json.loads(args)
                 place = (
                     arguments.get("place_id") if isinstance(arguments, dict) else None
@@ -699,7 +751,14 @@ def _tools(
                         else error.receipt.outcome
                     )
                     text = _json({"status": "unavailable", "reason": reason})
+                _record_lineage_scope(prepared, state)
                 parsed = json.loads(text)
+                if (
+                    name == "read_finding"
+                    and isinstance(parsed, dict)
+                    and parsed.get("status") == "available"
+                ):
+                    state.retained_finding_observed = True
                 if isinstance(parsed, dict) and parsed.get("reason") in {
                     "tool_limit",
                     "context_limit",
@@ -879,6 +938,7 @@ async def execute_owner(
                 recovery_attempted=recovery,
                 retained=tuple(state.retained),
                 deferred_references=tuple(sorted(state.deferred_references)),
+                lineage=state.lineage(),
             )
         except _OwnerStop as error:
             last_reason = error.reason
@@ -932,4 +992,5 @@ async def execute_owner(
         recovery_attempted=recovery,
         retained=tuple(state.retained),
         deferred_references=tuple(sorted(state.deferred_references)),
+        lineage=state.lineage(),
     )

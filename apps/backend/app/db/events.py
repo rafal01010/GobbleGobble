@@ -8,9 +8,11 @@ from app.schemas.lifecycle import (
     CompletedState,
     EventBatch,
     InsufficientCoverageOutcome,
+    PartialOutcome,
     ProgressEvent,
     QueuedEvent,
     QueuedState,
+    ReadyOutcome,
     RunEvent,
     RunningState,
     RunSnapshot,
@@ -40,7 +42,11 @@ def _event(snapshot: RunSnapshot, occurred_at: datetime) -> RunEvent:
     elif isinstance(snapshot.state, RunningState):
         payload = ProgressEvent(stage=snapshot.state.stage)
     elif isinstance(snapshot.state, CompletedState) and isinstance(
-        snapshot.state.outcome, InsufficientCoverageOutcome | TechnicalFailureOutcome
+        snapshot.state.outcome,
+        InsufficientCoverageOutcome
+        | TechnicalFailureOutcome
+        | ReadyOutcome
+        | PartialOutcome,
     ):
         payload = CompletedEvent(outcome=snapshot.state.outcome)
     else:
@@ -51,7 +57,12 @@ def _event(snapshot: RunSnapshot, occurred_at: datetime) -> RunEvent:
         attempt_id=snapshot.attempt_id,
         sequence=snapshot.last_event_sequence,
         occurred_at=occurred_at,
-        result_version_id=None,
+        result_version_id=(
+            snapshot.state.outcome.version_id
+            if isinstance(snapshot.state, CompletedState)
+            and isinstance(snapshot.state.outcome, ReadyOutcome | PartialOutcome)
+            else None
+        ),
         payload=payload,
     )
 
@@ -121,6 +132,19 @@ def _validate_history(connection: sqlite3.Connection, snapshot: RunSnapshot) -> 
             raise sqlite3.DatabaseError("invalid_run_event_history") from None
         if event.attempt_id != snapshot.attempt_id or event.payload != payload:
             raise sqlite3.DatabaseError("invalid_run_event_history")
+        if isinstance(snapshot.state, CompletedState) and isinstance(
+            snapshot.state.outcome, ReadyOutcome | PartialOutcome
+        ):
+            row = connection.execute(
+                "SELECT 1 FROM result_versions WHERE version_id=? AND search_id=? AND run_id=?",
+                (
+                    snapshot.state.outcome.version_id,
+                    snapshot.search_id,
+                    snapshot.run_id,
+                ),
+            ).fetchone()
+            if row is None:
+                raise sqlite3.DatabaseError("missing_result_version")
 
 
 def _read_snapshot(connection: sqlite3.Connection, run_id: str) -> RunSnapshot:

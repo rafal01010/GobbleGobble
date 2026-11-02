@@ -1,6 +1,6 @@
 # Run GobbleGobble locally
 
-The frontend currently shows a visual preview. The backend provides admission, saved progress, event streaming and a diagnostic worker. The normal restaurant-search journey is not connected yet. You can run the preview alone; exercising the diagnostic lifecycle also needs the API and database.
+The frontend currently shows a visual preview. The backend provides admission, saved progress, event streaming, a diagnostic worker and a separately started research worker. The normal restaurant-search journey and result publication are not connected yet. You can run the preview alone; exercising the diagnostic lifecycle also needs the API and database.
 
 ## Prerequisites
 
@@ -64,6 +64,16 @@ scripts/local/backend-process.py app restart
 Start waits for the API at `127.0.0.1:8000` and the frontend at `127.0.0.1:5173`. It checks that the supervised process owns each listening port. Open `http://127.0.0.1:5173/diagnostic` for the controlled run observer. The normal restaurant-search journey is not connected.
 
 The command starts no diagnostic worker automatically. After admitting a run, start its worker as described below. Stop and restart interrupt supervised diagnostic workers; restart does not start them again. A failed start stops only processes started by that invocation. `app status` reports process liveness, not readiness.
+
+To start the research worker separately, configure the live backend credentials, migrate the database, and run these commands from the repository root:
+
+```sh
+python3 scripts/local/backend-process.py live-worker start
+python3 scripts/local/backend-process.py live-worker status
+python3 scripts/local/backend-process.py live-worker stop
+```
+
+The research worker consumes queued runs and can incur provider charges. Do not run it alongside the diagnostic observer, which creates queued test runs. Start the API before the research worker. The worker publishes temporary results through the API process. Results expire within two minutes and disappear when the API stops. Start a new search if a result expires. Restart recovery and the normal dining flow remain incomplete. `app stop` also stops the research worker.
 
 ## Manage backend processes
 
@@ -145,4 +155,4 @@ For deliberate provider probes, copy `apps/backend/.env.example` to `apps/backen
 
 After backend initialization, the repository-root command `scripts/local/verify-section-a.sh` runs offline pytest, Ruff, mypy and probe-wrapper shell-syntax checks. Despite its historical name, it is a component-check command. It installs nothing, calls no external service and stops at the first failure. A pass does not prove the complete application journey.
 
-Stop foreground frontend or API processes with Ctrl+C. Use the process commands above for supervised processes. A diagnostic worker exits after its selected job. Production research, cancellation and recommendation publication are not implemented yet.
+Stop foreground frontend or API processes with Ctrl+C. Use the process commands above for supervised processes. A diagnostic worker exits after its selected job. Cancellation and recommendation publication are not implemented yet.

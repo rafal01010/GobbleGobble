@@ -9,6 +9,7 @@ from starlette.exceptions import HTTPException
 from starlette.responses import StreamingResponse
 from starlette.types import Receive, Scope, Send
 
+from app.api.progress import public_event
 from app.core.settings import DatabaseSettings
 from app.db.events import read_events
 from app.db.ownership import require_search_access
@@ -86,7 +87,7 @@ def read_watch_page(
 
 
 def event_frame(event: RunEvent) -> str:
-    return f"id: {event.sequence}\ndata: {event.model_dump_json()}\n\n"
+    return f"id: {event.sequence}\ndata: {public_event(event).model_dump_json()}\n\n"
 
 
 def terminal_and_caught_up(page: WatchPage, cursor: int) -> bool:

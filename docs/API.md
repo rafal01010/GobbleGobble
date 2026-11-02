@@ -1,6 +1,6 @@
 # Backend API
 
-The API currently bootstraps anonymous sessions, resolves locations, admits queued runs, reads their state and streams committed events. It does not yet execute production research, publish recommendation versions or expose refinement/retry/cancel routes. A [controlled worker](SETUP.md#run-a-diagnostic-job) advances an explicitly selected run without food research.
+The API currently bootstraps anonymous sessions, resolves locations, admits queued runs, reads their state and streams committed events. The optional production worker performs research and publishes a temporary recommendation view. Refinement, retry, and cancellation routes are not available. A [controlled worker](SETUP.md#run-a-diagnostic-job) advances an explicitly selected run without food research.
 
 [application.py](../apps/backend/app/api/application.py) owns routes and the HTTP boundary. The Pydantic [domain models](DOMAIN.md) are authoritative payload definitions. The diagnostic HTTP/database/worker flow has been exercised through the local frontend proxy. The examples below describe contracts, not restaurant searches.
 
@@ -14,7 +14,7 @@ Start the API using [local setup](SETUP.md#start-the-api). App construction and 
 | `POST /api/session` | 204, empty | Issues a session only for an absent cookie. Resolves an existing cookie without rotation; invalid/empty credentials receive 401. |
 | `POST /api/locations/resolve` | 200 `ResolveLocationResponse` | Resolves coordinates or a chosen query, returns typed choices, or reports no match/provider unavailability. Requires a valid session. |
 | `POST /api/runs` | 202 `CommandResponse` | Commits queued admission or replays the current durable snapshot without waiting for research. |
-| `GET /api/searches/{search_id}/runs/{run_id}` | 200 `RunReadResponse` | Authorizes the search and selects the run by both IDs. Recommendations are not stored yet. |
+| `GET /api/searches/{search_id}/runs/{run_id}` | 200 `PublicRunResponse` | Authorizes the search and selects the run by both IDs. It returns a plain-language `progress_message` and any available recommendations. Temporary results expire or disappear when the API process stops. Start a new search if the result is unavailable. |
 | `GET /api/searches/{search_id}/runs/{run_id}/events` | 200 `text/event-stream`, or 204 when terminal and caught up | Replays after a sequence, then follows newly committed events. |
 
 ## Frontend connection
@@ -106,7 +106,7 @@ Cookie: gg_session=<server-generated-credential>
 The HTTP 200 body is:
 
 ```json
-{"run":{"search_id":"example-search","run_id":"example-run","operation":"initial","attempt_id":null,"state":{"status":"queued"},"last_event_sequence":1},"recommendations":null,"display_version_id":null}
+{"run":{"search_id":"example-search","run_id":"example-run","operation":"initial","attempt_id":null,"state":{"status":"queued"},"last_event_sequence":1},"progress_message":"Your search is waiting to start.","recommendations":null,"display_version_id":null,"result_status":null}
 ```
 
 ## Event stream
@@ -115,7 +115,7 @@ The events endpoint requires the same cookie and paired authorization. Optional 
 
 Each cursor accepts one ASCII decimal string of one through nineteen digits between zero and 9223372036854775807. Empty, duplicate, signed, whitespace, fractional, non-ASCII and oversized values receive 422. A cursor ahead of the authorized run's durable sequence also receives 422 before SSE headers.
 
-A stream uses `text/event-stream`, no-store and `X-Accel-Buffering: no`. Each frame has a run-scoped sequence as `id` and the stored `RunEvent` JSON as `data`, followed by a blank line. There is no named event field, so EventSource clients use `onmessage` and `withCredentials: true` on the configured frontend origin.
+A stream uses `text/event-stream`, no-store and `X-Accel-Buffering: no`. Each frame has a run-scoped sequence as `id` and a `RunEvent` JSON projection as `data`, followed by a blank line. There is no named event field, so EventSource clients use `onmessage` and `withCredentials: true` on the configured frontend origin.
 
 ```text
 id: 1
@@ -129,7 +129,7 @@ The API authorizes and reads the first batch before sending headers. Replay and 
 
 Batches hold at most 100 events. Backlog drains without an idle wait; caught-up streams poll every 250 milliseconds with ID-free idle comments every 15 seconds. These are defaults, not measured delivery guarantees. Sends apply backpressure. One disconnect listener races the sender; disconnect ends only the subscription, never the durable run. An active threadpool read finishes cleanup before cancellation starts no further poll.
 
-The controlled worker supports completed coverage-gap and technical-failure histories. Streams drain their terminal events and close; a reconnect already at that cursor returns 204. Clients should close EventSource after accepting terminal completion. Other terminal writers are incomplete. After-header failures interrupt transport without inventing events or inserting error JSON. No watcher retention/expiry policy or measured subscriber capacity exists; current history validation scans the run index.
+The controlled worker supports completed coverage-gap and technical-failure histories. Streams drain their terminal events and close; a reconnect already at that cursor returns 204. Clients should close EventSource after accepting terminal completion. The production worker also publishes partial result events. No-matches and cancellation writers remain incomplete. After-header failures interrupt transport without inventing events or inserting error JSON. No watcher retention/expiry policy or measured subscriber capacity exists; current history validation scans the run index.
 
 ## Export the contract
 

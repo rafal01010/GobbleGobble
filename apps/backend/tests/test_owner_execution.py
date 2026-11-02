@@ -220,6 +220,17 @@ async def test_closed_research_composes_with_original_constraints_and_no_tools(s
             research_turns=0,
         )
     assert result.status == "completed"
+    from app.agents.owner_execution import require_storable_owner_lineage
+
+    assert result.lineage.status == "unknown"
+    assert result.lineage.model_attempts == 1
+    assert "src_google" in result.lineage.source_ids
+    assert "ev_google" in result.lineage.evidence_ids
+    assert "public_google_reviews" in result.lineage.source_classes
+    assert "geoapify_geography" in result.lineage.source_classes
+    assert "unknown_publisher" in result.lineage.source_classes
+    with pytest.raises(ValueError, match="owner_input_lineage_unknown"):
+        require_storable_owner_lineage(result.lineage)
     assert result.research_closed is True
     assert result.recovery_attempted is False
     assert [x.place_id for x in result.collection.versions[0].primaries] == [

@@ -1,4 +1,5 @@
 import argparse
+import asyncio
 import logging
 import math
 import sqlite3
@@ -15,6 +16,7 @@ from app.core.settings import (
     ConfigurationError,
     DatabaseSettings,
     load_database_settings,
+    load_settings,
 )
 from app.db.checkpoints import ContributionRecord, commit_checkpoint
 from app.db.completion import NonResultOutcome, complete_without_result
@@ -152,7 +154,7 @@ def _delay(value: str) -> float:
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = _Parser(
-        description="Run an explicitly selected diagnostic job without external calls.",
+        description="Run one admitted local job.",
         allow_abbrev=False,
         color=False,
     )
@@ -165,7 +167,90 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     diagnostic.add_argument("--run-id", required=True, type=_run_id)
     diagnostic.add_argument("--step-delay", type=_delay, default=1.0, metavar="SECONDS")
+    production = commands.add_parser(
+        "production",
+        help="Research one admitted run with configured providers.",
+        allow_abbrev=False,
+    )
+    production.add_argument("--run-id", required=True, type=_run_id)
+    commands.add_parser(
+        "serve",
+        help="Run queued searches using configured providers.",
+        allow_abbrev=False,
+    )
     args = parser.parse_args(argv)
+    if args.command == "serve":
+        try:
+            database = load_database_settings()
+            live_settings = load_settings(mode="live")
+            from app.production_worker import execute_and_publish_production_run
+
+            while True:
+                with session(database) as connection:
+                    require_current_schema(connection)
+                    row = connection.execute(
+                        "SELECT run_id FROM runs WHERE json_extract(snapshot_json, '$.state.status') = 'queued' ORDER BY rowid LIMIT 1"
+                    ).fetchone()
+                if row is None:
+                    sleep(1)
+                    continue
+                try:
+                    asyncio.run(
+                        execute_and_publish_production_run(
+                            database, live_settings, row[0], worker_id=uuid4().hex
+                        )
+                    )
+                except LeaseBusy, RunNotClaimable:
+                    continue
+                except Exception:
+                    _logger.error(
+                        "production_worker_failed",
+                        exc_info=RuntimeError("production_worker_failed"),
+                    )
+                    sleep(1)
+        except KeyboardInterrupt:
+            return 0
+        except ConfigurationError, MigrationError, sqlite3.Error, OSError:
+            print("production_worker_unavailable", file=sys.stderr)
+            return 1
+    if args.command == "production":
+        try:
+            from app.production_worker import execute_and_publish_production_run
+
+            result = asyncio.run(
+                execute_and_publish_production_run(
+                    load_database_settings(),
+                    load_settings(mode="live"),
+                    args.run_id,
+                    worker_id=uuid4().hex,
+                )
+            )
+        except ConfigurationError:
+            print("production_configuration_error", file=sys.stderr)
+            return 1
+        except (
+            RunNotFound,
+            LeaseBusy,
+            RunNotClaimable,
+            LeaseLost,
+            MigrationError,
+            sqlite3.Error,
+            OSError,
+        ):
+            print("production_worker_unavailable", file=sys.stderr)
+            return 1
+        except Exception:
+            _logger.error(
+                "production_worker_failed",
+                exc_info=RuntimeError("production_worker_failed"),
+            )
+            return 1
+        print(
+            "production_owner_finished"
+            if result.owner.status != "technical_failure"
+            else "production_owner_failed"
+        )
+        return 0 if result.owner.status != "technical_failure" else 1
     try:
         job = diagnostic_job(delay_seconds=args.step_delay)
         settings = load_database_settings()

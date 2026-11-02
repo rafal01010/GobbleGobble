@@ -33,6 +33,8 @@ All pending statements and ledger rows commit together or roll back together. Em
 | 3 | `runs` and owner-scoped `run_commands`, with composite ownership/run-membership keys. |
 | 4 | Append-only `run_attempts` and one current `run_leases` row per run. |
 | 5 | `run_events`, `run_contributions`, `run_receipts` and same-run `contribution_receipts` links. |
+| 6-7 | Source evidence and research snapshot storage. |
+| 8 | `attempt_call_ledger`, for admitted calls and their safe receipts. |
 
 Migration 5 leaves legitimate cursor-zero snapshots unchanged and invents no historical events. Ledger agreement detects edited migration records, not arbitrary manual changes to application tables.
 
@@ -92,8 +94,10 @@ Sample counts, assessed counts, selection class, and partial status can be retai
 
 ## Completion and verification limits
 
-[completion.py](../apps/backend/app/db/completion.py) accepts only revalidated coverage-gap or technical-failure outcomes. It preserves identities, advances sequence, appends the matching completed event and uses the same final live-lease fence. Lease rows remain historical; terminal state rejects later claims/renewals. Ready/partial results, no-matches publication and cancellation need their own storage and event projection.
+[completion.py](../apps/backend/app/db/completion.py) accepts only revalidated coverage-gap or technical-failure outcomes. It preserves identities, advances sequence, appends the matching completed event and uses the same final live-lease fence. Lease rows remain historical; terminal state rejects later claims/renewals. The separate [result store](../apps/backend/app/db/result_versions.py) can commit a permitted result and its ready or partial event in the same lease-fenced transaction. The caller must supply complete input lineage and validate semantic support. The production worker commits an opaque marker for a temporary result through this store. The result details remain in memory and expire. No-matches publication and cancellation remain incomplete.
 
-The shared runner in [worker.py](../apps/backend/app/worker.py) owns claim, renewal, checkpoint and completion transactions. Its finite job callbacks receive no connection or lease credential and run after storage closes. A callback exception may publish only a fixed retryable `worker_failure` through a still-current claim. Storage errors escape; interruption leaves the attempt for expiry/reclaim. Arbitrarily long callbacks have no concurrent heartbeat and need bounded or cooperative work before production integration.
+The diagnostic runner in [worker.py](../apps/backend/app/worker.py) owns claim, renewal, checkpoint and completion transactions. Its finite job callbacks receive no connection or lease credential and run after storage closes. A callback exception may publish only a fixed retryable `worker_failure` through a still-current claim. Storage errors escape; interruption leaves the attempt for expiry and reclaim. Diagnostic callbacks have no concurrent heartbeat.
+
+The [research worker](../apps/backend/app/production_worker.py) renews its lease during external work. The [call ledger](../apps/backend/app/db/attempt_calls.py) records each admitted request before dispatch and accepts its safe receipt using a call-specific credential, even after lease loss. A request interrupted before its response remains pending with unknown usage. Resumed attempts count earlier calls and retain the original deadline. They conservatively close research tools because prior tool counts are not yet persisted. The worker sends a checked temporary view to the local broker before committing its version marker and terminal event. A failed transaction leaves no readable result. The temporary view is lost on broker restart or expiry.
 
 The [setup guide](SETUP.md#run-a-diagnostic-job) defines diagnostic commands and exit codes. The [foundation checks](SETUP.md#verify-the-local-foundation) exercise fresh storage, actual HTTP and worker processes, event replay and restart recovery. [Backend lifecycle tests](../apps/backend/tests/test_foundation.py) cover migration upgrades, command and lease contention, ownership, provisional-write rollback, final-fence expiry and controlled worker failure. These bounded checks establish no throughput or exactly-once billing guarantee.

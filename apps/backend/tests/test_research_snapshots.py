@@ -23,7 +23,7 @@ from app.schemas.evidence import EvidenceCollection
 
 def test_snapshot_indexes_broader_candidates_and_scoped_retained_findings(tmp_path):
     settings = DatabaseSettings(database_path=tmp_path / "snapshot.sqlite")
-    assert migrate(settings) == (1, 2, 3, 4, 5, 6, 7)
+    assert migrate(settings) == (1, 2, 3, 4, 5, 6, 7, 8, 9)
     fixture = fixture_collection()
     for item in fixture["evidence"]:
         item["freshness"]["fresh_until"] = "2026-11-30T00:00:00Z"

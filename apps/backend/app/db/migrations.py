@@ -199,6 +199,22 @@ MIGRATIONS: tuple[Migration, ...] = (
             "CREATE TABLE research_samples (search_id TEXT NOT NULL, snapshot_id TEXT NOT NULL, place_id TEXT NOT NULL, source_id TEXT NOT NULL, sample_size INTEGER NOT NULL, assessed_count INTEGER NOT NULL, reported_total INTEGER, selection TEXT NOT NULL CHECK(selection IN ('source_selected','unknown')), partial INTEGER NOT NULL CHECK(partial IN (0,1)), PRIMARY KEY(search_id, snapshot_id, place_id, source_id), FOREIGN KEY(search_id, snapshot_id, place_id) REFERENCES research_candidates(search_id, snapshot_id, place_id), FOREIGN KEY(search_id, source_id, place_id) REFERENCES evidence_source_subjects(search_id, source_id, place_id))",
         ),
     ),
+    Migration(
+        version=8,
+        name="record_inflight_attempt_calls",
+        statements=(
+            "CREATE TABLE attempt_call_ledger (request_id TEXT PRIMARY KEY, run_id TEXT NOT NULL, attempt_id TEXT NOT NULL, capability TEXT NOT NULL, started_at TEXT NOT NULL, completion_digest TEXT NOT NULL, safe_record_json TEXT, FOREIGN KEY(run_id, attempt_id) REFERENCES run_attempts(run_id, attempt_id))",
+            "CREATE INDEX attempt_call_run_idx ON attempt_call_ledger(run_id, attempt_id)",
+        ),
+    ),
+    Migration(
+        version=9,
+        name="create_result_versions",
+        statements=(
+            "CREATE TABLE result_versions (version_id TEXT PRIMARY KEY NOT NULL, search_id TEXT NOT NULL, run_id TEXT NOT NULL UNIQUE, snapshot_id TEXT NOT NULL, content_json TEXT NOT NULL, FOREIGN KEY(search_id, run_id) REFERENCES runs(search_id, run_id), FOREIGN KEY(search_id, snapshot_id) REFERENCES research_snapshots(search_id, snapshot_id))",
+            "CREATE TRIGGER result_versions_immutable BEFORE UPDATE ON result_versions BEGIN SELECT RAISE(ABORT, 'immutable_result_version'); END",
+        ),
+    ),
 )
 
 

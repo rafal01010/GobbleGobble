@@ -38,6 +38,8 @@ class DisplayFinding:
     citations: tuple[Citation, ...]
     polarity: str | None = None
     wording: str | None = None
+    topic: str | None = None
+    basis: str | None = None
 
 
 @dataclass(frozen=True)
@@ -103,6 +105,8 @@ def project_evidence(
         qualification: str,
         polarity: str | None = None,
         wording: str | None = None,
+        topic: str | None = None,
+        basis: str | None = None,
     ) -> DisplayFinding | None:
         binding = next((item for item in bindings if item.place_id == place_id), None)
         if binding is None:
@@ -158,7 +162,7 @@ def project_evidence(
                 )
             )
         return DisplayFinding(
-            statement, qualification, tuple(citations), polarity, wording
+            statement, qualification, tuple(citations), polarity, wording, topic, basis
         )
 
     for claim in collection.food_claims:
@@ -172,7 +176,13 @@ def project_evidence(
                 if isinstance(claim, InferredFoodClaim)
                 else "Source-supported information."
             )
-            display = render(claim.statement, claim.subjects, qualifier)
+            display = render(
+                claim.statement,
+                claim.subjects,
+                qualifier,
+                topic=claim.topic,
+                basis=claim.basis if isinstance(claim, InferredFoodClaim) else None,
+            )
             if display is not None:
                 food.append(display)
 
@@ -210,6 +220,8 @@ def project_evidence(
                 qualification,
                 finding.polarity,
                 finding.wording,
+                finding.topic,
+                finding.basis,
             )
             if display is not None:
                 reviews.append(display)
@@ -229,16 +241,17 @@ def project_evidence(
         if assessment.place_id != place_id:
             continue
         if isinstance(assessment.google, AvailableReviews):
-            if add_findings(assessment.findings, review_sample=True):
-                add_sample(assessment.google.sample)
+            add_findings(assessment.findings, review_sample=True)
+            add_sample(assessment.google.sample)
         else:
             gaps.add("Review information has not been confirmed.")
         fallback = assessment.fallback
         if fallback is not None:
             is_review_sample = isinstance(fallback, IndependentReviewFallback)
-            if add_findings(
+            add_findings(
                 fallback.findings, review_sample=is_review_sample, independent=True
-            ) and isinstance(fallback, IndependentReviewFallback):
+            )
+            if isinstance(fallback, IndependentReviewFallback):
                 add_sample(fallback.sample)
     return EvidenceProjection(
         tuple(food), tuple(reviews), tuple(samples), tuple(sorted(gaps))

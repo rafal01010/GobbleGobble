@@ -156,7 +156,7 @@ def test_migrations_create_durable_storage_and_rerun_without_changes(
     tmp_path: Path,
 ) -> None:
     settings = DatabaseSettings(database_path=tmp_path / "empty" / "foundation.db")
-    assert migrate(settings) == (1, 2, 3, 4, 5, 6, 7)
+    assert migrate(settings) == (1, 2, 3, 4, 5, 6, 7, 8, 9)
     with session(settings) as opened, transaction(opened):
         credential = issue_session(opened).credential
     assert migrate(settings) == ()
@@ -181,7 +181,7 @@ def test_migrations_reject_tampered_history_without_applying_changes(
     with pytest.raises(MigrationError, match="history_mismatch"):
         migrate(database)
     assert (
-        connection.execute("SELECT count(*) FROM schema_migrations").fetchone()[0] == 7
+        connection.execute("SELECT count(*) FROM schema_migrations").fetchone()[0] == 9
     )
     assert (
         connection.execute(
@@ -201,14 +201,14 @@ def test_simultaneous_migrations_apply_the_manifest_once(tmp_path: Path) -> None
 
     with ThreadPoolExecutor(max_workers=2) as pool:
         results = list(pool.map(upgrade, (1, 2)))
-    assert sorted(results) == [(), (1, 2, 3, 4, 5, 6, 7)]
+    assert sorted(results) == [(), (1, 2, 3, 4, 5, 6, 7, 8, 9)]
     with session(settings) as opened:
         assert [
             row["version"]
             for row in opened.execute(
                 "SELECT version FROM schema_migrations ORDER BY version"
             ).fetchall()
-        ] == [1, 2, 3, 4, 5, 6, 7]
+        ] == [1, 2, 3, 4, 5, 6, 7, 8, 9]
     assert migrate(settings) == ()
 
 
@@ -220,7 +220,7 @@ def test_version_one_database_upgrades_and_admits_a_queued_run(
     monkeypatch.setattr(migrations, "MIGRATIONS", manifest[:1])
     assert migrate(settings) == (1,)
     monkeypatch.setattr(migrations, "MIGRATIONS", manifest)
-    assert migrate(settings) == (2, 3, 4, 5, 6, 7)
+    assert migrate(settings) == (2, 3, 4, 5, 6, 7, 8, 9)
     with session(settings) as opened, transaction(opened):
         credential = issue_session(opened).credential
         response = admit_start(opened, credential, command)
@@ -246,7 +246,7 @@ def test_failed_migration_rolls_back_schema_and_ledger(
         migrations.MIGRATIONS
         + (
             Migration(
-                8,
+                10,
                 "controlled_failure",
                 ("CREATE TABLE partial (id TEXT)", "INVALID SQL"),
             ),
@@ -255,7 +255,7 @@ def test_failed_migration_rolls_back_schema_and_ledger(
     with pytest.raises(sqlite3.OperationalError, match="syntax error"):
         migrate(database)
     assert (
-        connection.execute("SELECT count(*) FROM schema_migrations").fetchone()[0] == 7
+        connection.execute("SELECT count(*) FROM schema_migrations").fetchone()[0] == 9
     )
     assert (
         connection.execute(
@@ -291,7 +291,7 @@ def test_populated_upgrade_accepts_zero_cursor_and_rejects_missing_history(
             (snapshot.run_id, snapshot.search_id, snapshot.model_dump_json()),
         )
     monkeypatch.setattr(migrations, "MIGRATIONS", manifest)
-    assert migrate(settings) == (5, 6, 7)
+    assert migrate(settings) == (5, 6, 7, 8, 9)
     with session(settings) as opened:
         if cursor:
             with (
@@ -1103,3 +1103,98 @@ def test_independent_fallback_preserves_its_label_and_primary_failure(
 def test_invalid_evidence_relationships_are_rejected(name: str, message: str) -> None:
     with pytest.raises(ValidationError, match=message):
         EvidenceCollection.model_validate_json((EXAMPLES / f"{name}.json").read_text())
+
+
+def test_leased_candidate_append_is_scoped_and_fenced(connection, admitted, claim):
+    from app.db.ownership import OwnedSearch
+    from app.db.research_snapshots import (
+        SnapshotCandidate,
+        append_candidate_for_lease,
+        store_snapshot,
+        view_snapshot,
+    )
+
+    search = OwnedSearch(admitted.search_id)
+    with transaction(connection):
+        store_snapshot(connection, search, "snap_dynamic", candidates=(), findings=())
+        append_candidate_for_lease(
+            connection,
+            search,
+            "snap_dynamic",
+            SnapshotCandidate("place_a", "branch"),
+            claim,
+        )
+    assert [
+        candidate.place_id
+        for candidate in view_snapshot(
+            connection, search, "snap_dynamic", limit=10
+        ).candidates
+    ] == ["place_a"]
+    with transaction(connection):
+        connection.execute(
+            "UPDATE run_leases SET expires_at_ms=0 WHERE run_id=?", (claim.run_id,)
+        )
+    with pytest.raises(LeaseLost), transaction(connection):
+        append_candidate_for_lease(
+            connection,
+            search,
+            "snap_dynamic",
+            SnapshotCandidate("place_b", "branch"),
+            claim,
+        )
+    assert [
+        candidate.place_id
+        for candidate in view_snapshot(
+            connection, search, "snap_dynamic", limit=10
+        ).candidates
+    ] == ["place_a"]
+
+
+def test_worker_serve_dispatches_queued_run_without_browser(
+    connection, admitted, monkeypatch, database
+):
+    from app import production_worker
+
+    seen = []
+    monkeypatch.setattr(worker, "load_database_settings", lambda: database)
+    monkeypatch.setattr(worker, "load_settings", lambda **kwargs: object())
+
+    async def dispatch(database, settings, run_id, *, worker_id):
+        seen.append(run_id)
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(production_worker, "execute_production_run", dispatch)
+    assert worker.main(["serve"]) == 0
+    assert seen == [admitted.run_id]
+
+
+def test_call_ledger_counts_inflight_and_accepts_late_receipt(
+    database, connection, claim, receipt
+):
+    from app.core.calls import CallSpec
+    from app.db.attempt_calls import AttemptCallLedger
+
+    ledger = AttemptCallLedger(database, claim)
+    spec = CallSpec(capability="location", use="api_diagnostic", input_sources=())
+    ledger.admit(receipt.local_request_id, spec, receipt.started_at)
+    pending = connection.execute(
+        "SELECT safe_record_json FROM attempt_call_ledger WHERE request_id=?",
+        (str(receipt.local_request_id),),
+    ).fetchone()
+    assert pending[0] is None
+    with transaction(connection):
+        connection.execute(
+            "UPDATE run_leases SET expires_at_ms=0 WHERE run_id=?", (claim.run_id,)
+        )
+        claim_run(connection, claim.run_id, "replacement", 30)
+    ledger.finish(receipt)
+    saved = connection.execute(
+        "SELECT attempt_id,safe_record_json FROM attempt_call_ledger WHERE request_id=?",
+        (str(receipt.local_request_id),),
+    ).fetchone()
+    assert saved[0] == claim.attempt_id
+    assert json.loads(saved[1])["outcome"] == receipt.outcome
+    with pytest.raises(LeaseLost):
+        ledger.admit(
+            UUID("00000000-0000-0000-0000-000000000099"), spec, receipt.started_at
+        )

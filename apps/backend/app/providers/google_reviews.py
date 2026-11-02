@@ -56,6 +56,7 @@ type Termination = Literal[
     "invalid_rows",
     "conflicting_total",
     "request_limit",
+    "completion_reserved",
     "call_timeout",
     "attempt_timeout",
     "source_blocked",

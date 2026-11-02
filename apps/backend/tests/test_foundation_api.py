@@ -15,7 +15,11 @@ from app.db.events import read_events
 from app.db.migrations import migrate
 from app.db.ownership import issue_session
 from app.db.session import session, transaction
-from app.schemas.lifecycle import InsufficientCoverageOutcome, RunSnapshot
+from app.schemas.lifecycle import (
+    InsufficientCoverageOutcome,
+    RunSnapshot,
+    TechnicalFailureOutcome,
+)
 from app.worker import (
     CheckpointRecords,
     WorkerJob,
@@ -298,8 +302,10 @@ async def test_duplicate_admission_replays_and_conflict_preserves_the_original(
     assert status.status_code == 200
     assert status.json() == {
         "run": owned_run.model_dump(mode="json"),
+        "progress_message": "Your search is waiting to start.",
         "recommendations": None,
         "display_version_id": None,
+        "result_status": None,
     }
     with session(database) as opened:
         assert opened.execute("SELECT count(*) FROM runs").fetchone()[0] == 1
@@ -535,10 +541,11 @@ async def test_terminal_event_replay_matches_persisted_envelopes(
     ]
     with session(database) as opened, transaction(opened):
         stored = read_events(opened, terminal_run.run_id, after_sequence=0, limit=10)
-    assert payloads == [event.model_dump(mode="json") for event in stored.events]
+    assert payloads[:-1] == [event.model_dump(mode="json") for event in stored.events[:-1]]
+    assert payloads[-1]["sequence"] == stored.events[-1].sequence
     assert payloads[-1]["payload"]["outcome"] == {
         "kind": "insufficient_coverage",
-        "gaps": ["Diagnostic lifecycle check only. No place research was performed."],
+        "gaps": ["We could not check enough places. Try searching again."],
     }
 
 
@@ -603,11 +610,62 @@ async def test_terminal_replay_drains_multiple_batches_for_independent_cursors(
         "kind": "completed",
         "outcome": {
             "kind": "insufficient_coverage",
-            "gaps": ["Controlled multi-batch replay only."],
+            "gaps": ["We could not check enough places. Try searching again."],
         },
     }
     with session(database) as opened, transaction(opened):
         persisted = read_events(opened, owned_run.run_id, after_sequence=0, limit=1000)
-    assert first_payloads == [
-        event.model_dump(mode="json") for event in persisted.events
+    assert first_payloads[:-1] == [
+        event.model_dump(mode="json") for event in persisted.events[:-1]
     ]
+    assert first_payloads[-1]["sequence"] == persisted.events[-1].sequence
+
+
+@pytest.mark.asyncio
+async def test_read_progress_describes_current_dining_task(
+    client: httpx.AsyncClient, database: DatabaseSettings, owned_run: RunSnapshot
+) -> None:
+    execute_run(
+        database,
+        owned_run.run_id,
+        diagnostic_job(delay_seconds=0),
+        worker_id="progress-test",
+    )
+    response = await client.get(
+        f"/api/searches/{owned_run.search_id}/runs/{owned_run.run_id}"
+    )
+    assert response.json()["progress_message"] == (
+        "We could not check enough places. Try searching again."
+    )
+
+
+@pytest.mark.asyncio
+async def test_read_and_event_hide_internal_failure_details(
+    client: httpx.AsyncClient, database: DatabaseSettings, owned_run: RunSnapshot
+) -> None:
+    execute_run(
+        database,
+        owned_run.run_id,
+        WorkerJob(
+            steps=(),
+            outcome=TechnicalFailureOutcome(
+                code="worker_failure",
+                message="raw exception: secret detail",
+                retryable=True,
+            ),
+        ),
+        worker_id="failure-test",
+    )
+    url = f"/api/searches/{owned_run.search_id}/runs/{owned_run.run_id}"
+    read = await client.get(url)
+    events = await client.get(url + "/events")
+    assert read.status_code == events.status_code == 200
+    assert read.json()["run"]["state"]["outcome"] == {
+        "kind": "technical_failure",
+        "code": "worker_failure",
+        "message": "We could not finish your search. Try again.",
+        "retryable": True,
+    }
+    assert "raw exception" not in read.text
+    assert "raw exception" not in events.text
+    assert "We could not finish your search. Try again." in events.text

@@ -1,6 +1,6 @@
 # Architecture
 
-GobbleGobble uses a Python backend, SvelteKit frontend and SQLite on one local host. The current implementation has a visual shell, typed contracts, durable run infrastructure and a bounded recommendation owner. Real research is not connected to admitted searches. Publication and refinement remain incomplete.
+GobbleGobble uses a Python backend, SvelteKit frontend and SQLite on one local host. The current implementation has a visual shell, typed contracts, durable run infrastructure and a production research worker. Result publication and refinement remain incomplete.
 
 ## Components and ownership
 
@@ -11,7 +11,8 @@ GobbleGobble uses a Python backend, SvelteKit frontend and SQLite on one local h
 | `apps/backend/app/schemas/` | Authoritative request, evidence, recommendation and lifecycle models. |
 | `apps/backend/app/db/` | Migrations, ownership, command identity, leases, checkpoints and events. |
 | `apps/backend/app/db/evidence.py` | Search-scoped storage and place-scoped lookup of permitted evidence and Google branch reacquisition identifiers. |
-| `apps/backend/app/worker.py` | Shared leased runner and explicitly selected diagnostic job. |
+| `apps/backend/app/worker.py` | Diagnostic runner and queue consumer for the separately started live worker. |
+| `apps/backend/app/production_worker.py` | Connects leased searches, corroborated candidates, branch research and the recommendation owner. |
 | `apps/backend/app/providers/` | Geographic, web-research and anonymous Google review clients. |
 | `apps/backend/app/discovery.py` | Bounded geographic meal-lead collection, exact-ID deduplication and explicit continuation receipts. Not connected to admitted searches yet. |
 | `apps/backend/app/web_discovery.py` | Bounded supplemental web query guidance and citation-scoped lead mapping. Preserves uncertainty without creating place identities or researched candidates. Not connected to admitted searches yet. |
@@ -19,13 +20,16 @@ GobbleGobble uses a Python backend, SvelteKit frontend and SQLite on one local h
 | `apps/backend/app/identity.py` | Ephemeral outlet groups from exact provider IDs and explicit cited identity assertions. Preserves conflicting matches, separate branches and venue containment. Not connected to admitted searches yet. |
 | `apps/backend/app/journey.py` | Mode-specific route evidence for an explicitly associated outlet, observation time and comparison with the original travel limit. Preserves unavailable outcomes. Not connected to admitted searches yet. |
 | `apps/backend/app/opening.py` | Source-linked local opening and meal-service periods at eat-now and estimated arrival. Preserves missing, conflicting and DST-ambiguous facts. Not connected to admitted searches yet. |
-| `apps/backend/app/review_research.py` | Looks up Google branch candidates, matches them to a place and prepares bounded review batches. Not connected to admitted searches yet. |
+| `apps/backend/app/review_research.py` | Matches Google branch candidates to a place and prepares bounded review batches. |
 | `apps/backend/app/review_selection.py` | Tries Google reviews first and selects bounded independent web fallback using caller-vetted domains. |
 | `apps/backend/app/agents/probe.py` | Bounded Agents SDK owner/research experiment. |
 | `apps/backend/app/agents/research.py` | Registered place research tool over matched review samples and optional scoped evidence lookup. |
 | `apps/backend/app/agents/owner.py` | Configures the recommendation owner and binds scoped research, evidence, food claims and geographic tools. |
 | `apps/backend/app/agents/owner_draft.py` | Converts the model-facing draft into server-bound recommendation contracts. |
 | `apps/backend/app/agents/owner_execution.py` | Reserves final-composition capacity, closes research and permits one bounded recovery. |
+| `apps/backend/app/publication_validation.py` | Checks place-scoped claim references, source use, freshness and route observations before publication. |
+| `apps/backend/app/db/result_versions.py` | Stores source-permitted results and matching terminal events in one lease-fenced transaction. |
+| `apps/backend/app/ephemeral_publications.py` | Holds bounded temporary publication details for local processes. |
 | `apps/backend/app/core/` | Configuration, request bounds and safe receipts. |
 
 The backend owns secrets, precise request locations, execution limits and durable state. Browser IDs do not authenticate requests. A server-issued anonymous credential owns searches; run operations also check membership in that search. One current worker lease fences mutations against fresh database time. Transactions close before external work, waiting or streaming.
@@ -40,7 +44,11 @@ A browser connection observes work rather than owning its lifetime. Disconnect d
 4. Validate source/branch support, practical eligibility and current ownership.
 5. Commit a result version with its matching event before exposing it to the browser.
 
-The owner supplies comparative judgment rather than an arbitrary fixed scoring pipeline. Missing menus, prices or reviews remain qualified gaps. Timeouts and provider outages cannot establish that no places exist. Sources and dependent summaries follow the [integration and retention policy](INTEGRATIONS.md). The normal flow and result publication are not implemented yet; the diagnostic worker demonstrates no food research.
+The owner supplies comparative judgment rather than an arbitrary fixed scoring pipeline. Missing menus, prices or reviews remain qualified gaps. Timeouts and provider outages cannot establish that no places exist. Sources and dependent summaries follow the [integration and retention policy](INTEGRATIONS.md). The live worker publishes a temporary, source-associated view and an immutable version marker. The normal browser journey is not implemented yet. The diagnostic worker performs no food research.
+
+The owner instructions keep places with missing optional information or mixed reviews eligible. They ask the owner to include useful complaints and sample limitations, label inferred food claims, and exclude a place for uniformly negative reviews only when the evidence supports that conclusion. These instructions are not a guarantee of model behavior; live evaluation remains outstanding.
+
+The publication validator checks each declared food, menu, price or complaint reference against its place and evidence. It checks source permission and freshness, and keeps route-unconfirmed choices separate. Its checked selections do not include the owner's free-text rationale. The original draft remains available for further grounding, but is not display-ready. The research worker uses a separate model assessment to compare review proposals with their sources. The assessment is a model judgment. The result store commits a version marker with its terminal event. The temporary broker retains review-dependent selections and assessed findings in memory. The read endpoint checks ownership and the committed marker before it retrieves those details. A restart or expiration removes the temporary details; the reader must start a new search.
 
 ## Frontend design
 
@@ -50,7 +58,7 @@ Keep one main task prominent and reveal details when needed. Normal screens use 
 
 ## Context and completion requirements
 
-The research specialist has attempt-scoped request and tool limits and checks an estimate of the complete next SDK request. The estimate counts UTF-8 bytes, reserves output capacity and includes a fixed margin. It is not a provider token count or a guarantee that a request fits the provider's context window. The estimate and observed token usage are recorded separately. Initial review samples are reduced to fit, with a continuation index for deferred reviews. Requests that cannot fit stop with a context-limit outcome; completed sibling contributions remain available. Hosted web research and the specialist share the same allowance. The accounting records executed tool names and outcomes without source text. The owner shares the attempt allowance with its tools and reserves a request, context and time for composition. As retained evidence grows, the owner increases that reserve or closes research with a deferred-source marker. It compacts long review bodies when needed and keeps their review IDs. A malformed final response can use at most one affordable tools-free recovery. These controls have local SDK tests but are not connected to admitted searches or verified through the browser.
+The research specialist has attempt-scoped request and tool limits and checks an estimate of the complete next SDK request. The estimate counts UTF-8 bytes, reserves output capacity and includes a fixed margin. It is not a provider token count or a guarantee that a request fits the provider's context window. The estimate and observed token usage are recorded separately. Initial review samples are reduced to fit, with a continuation index for deferred reviews. Requests that cannot fit stop with a context-limit outcome; completed sibling contributions remain available. Hosted web research and the specialist share the same allowance. The accounting records executed tool names and outcomes without source text. The owner shares the attempt allowance with its tools and reserves a request, context and time for composition. As retained evidence grows, the owner increases that reserve or closes research with a deferred-source marker. It compacts long review bodies when needed and keeps their review IDs. A malformed final response can use at most one affordable tools-free recovery. These controls have local SDK tests; the connected worker path has not been verified through the browser.
 
 Permitted research snapshots are reusable state; SDK history is a temporary view. Preserve stable search/place/branch/source identities, favorable food findings, complaints, qualifications, conflicts, viable alternatives and material omission status. A retained source ID alone does not prove the evidence reached the model. Restricted or expired content must be reacquired or marked unavailable, including content embedded in summaries or checkpoints.
 

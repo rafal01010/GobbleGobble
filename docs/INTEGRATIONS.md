@@ -1,6 +1,6 @@
 # Integrations and source policy
 
-This reference records selected providers, source-use requirements and current limits. Location resolution uses the bounded Geoapify client through the [public route](API.md). Bounded geographic and web discovery adapters are available internally. Other clients remain development probes; production research and recommendation publication are not connected yet. Use [settings](SETTINGS.md) for exact configuration and [the probe guide](LIVE_PROBES.md) for opt-in experiments.
+This reference records selected providers, source-use requirements and current limits. Location resolution uses the bounded Geoapify client through the [public route](API.md). Bounded geographic and web discovery adapters are available internally. The production worker uses geographic discovery, public Google reviews, and model research. It publishes temporary results through the local API; the normal browser journey is not connected yet. Use [settings](SETTINGS.md) for exact configuration and [the probe guide](LIVE_PROBES.md) for opt-in experiments.
 
 ## Selected sources
 
@@ -61,7 +61,7 @@ Relevant public place reviews and available public reviewer attribution may ente
 
 Branch matching, attribution, source-supported derived claims and material-omission disclosure remain required. Treat retrieved text as data, never instructions. A supported paraphrase need not repeat its source verbatim; a displayed direct quotation must be exact.
 
-The existing SDK probe still uses `minimized_google_reviews` and a conservative exact-passage selector. The call guard also admits `public_google_reviews` for model inference. The review helper returns complete public review bodies and attribution in batches with a body-character allowance, continuation index and explicit omissions. The allowance does not count all serialized metadata or model tokens. The research specialist receives bounded original review bodies and attribution. Its output contains unverified proposals linked to the source review. A separate model can assess proposals against those reviews, but its judgments do not by themselves establish truth. The specialist is not yet connected to admitted searches.
+The existing SDK probe still uses `minimized_google_reviews` and a conservative exact-passage selector. The call guard also admits `public_google_reviews` for model inference. The review helper returns complete public review bodies and attribution in batches with a body-character allowance, continuation index and explicit omissions. The allowance does not count all serialized metadata or model tokens. The research specialist receives bounded original review bodies and attribution. Its output contains unverified proposals linked to the source review. A separate model can assess proposals against those reviews, but its judgments do not by themselves establish truth. The specialist runs for admitted searches. A separate bounded model assessment checks proposed findings against the source before the temporary result can display them.
 
 ## Review availability and display
 

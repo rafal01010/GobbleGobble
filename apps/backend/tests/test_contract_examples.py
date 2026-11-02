@@ -673,7 +673,7 @@ def test_openapi_export_contains_live_routes_and_resolved_domain_references() ->
     ]["schema"] == {"$ref": "#/components/schemas/CommandResponse"}
     assert paths["/api/searches/{search_id}/runs/{run_id}"]["get"]["responses"]["200"][
         "content"
-    ]["application/json"]["schema"] == {"$ref": "#/components/schemas/RunReadResponse"}
+    ]["application/json"]["schema"] == {"$ref": "#/components/schemas/PublicRunResponse"}
     assert paths["/api/searches/{search_id}/runs/{run_id}/events"]["get"]["responses"][
         "200"
     ]["content"]["text/event-stream"]["schema"] == {

@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import sqlite3
+from contextlib import asynccontextmanager
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Annotated, Any, Literal
 
 from fastapi import Cookie, Depends, FastAPI, Request, Security
@@ -16,6 +20,7 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import JSONResponse, Response
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from app.api.progress import progress_message, public_snapshot
 from app.api.streaming import (
     EventStreamResponse,
     follow_events,
@@ -32,6 +37,7 @@ from app.core.settings import (
     load_database_settings,
     load_location_settings,
 )
+from app.core.source_policy import SourceUseDenied
 from app.db.migrations import MigrationError, require_current_schema
 from app.db.ownership import (
     InvalidSession,
@@ -40,11 +46,28 @@ from app.db.ownership import (
     require_search_access,
     resolve_session,
 )
+from app.db.result_versions import (
+    EphemeralResult,
+    ResultUnavailable,
+    StoredResult,
+    read_result,
+)
 from app.db.runs import CommandConflict, RunNotFound, admit_start, read_snapshot
 from app.db.session import session, transaction
+from app.ephemeral_publications import (
+    PublicationBroker,
+    PublicationBrokerError,
+    exchange,
+)
 from app.location import LocationResolver
 from app.providers.geoapify import GeoapifyClient
-from app.schemas.lifecycle import RunReadResponse
+from app.publication_view import (
+    PublicPlace,
+    PublicRecommendations,
+    PublicResultOverlay,
+    PublicSource,
+)
+from app.schemas.lifecycle import RunSnapshot
 from app.schemas.operations import (
     CommandResponse,
     ErrorCode,
@@ -67,6 +90,62 @@ Credential = Annotated[str | None, Security(_cookie)]
 class ReadyResponse(BaseModel):
     model_config = ConfigDict(strict=True, frozen=True, extra="forbid")
     status: Literal["ready"] = "ready"
+
+
+class PublicRunResponse(BaseModel):
+    run: RunSnapshot
+    progress_message: str
+    recommendations: PublicRecommendations | None = None
+    display_version_id: str | None = None
+    result_status: Literal["available", "unavailable"] | None = None
+
+
+def public_recommendations(
+    connection: sqlite3.Connection, search_id: str, stored: StoredResult
+) -> PublicRecommendations:
+    version = stored.result
+    sources = {source.evidence_id: source for source in stored.sources}
+    primary: list[PublicPlace] = []
+    runners: list[PublicPlace] = []
+    unconfirmed: list[PublicPlace] = []
+    for items, target in ((version.primaries, primary), (version.runners_up, runners)):
+        for item in items:
+            row = connection.execute(
+                "SELECT name, identity_source FROM research_candidates "
+                "WHERE search_id=? AND snapshot_id=? AND place_id=?",
+                (search_id, version.snapshot_id, item.place_id),
+            ).fetchone()
+            if (
+                row is None
+                or row["identity_source"] != "geoapify_geography"
+                or not row["name"]
+            ):
+                raise ResultUnavailable("place_identity_unavailable")
+            references = []
+            for evidence_id in item.evidence_ids:
+                source = sources[evidence_id]
+                reference = PublicSource(
+                    publisher=source.publisher,
+                    url=source.source_url,
+                    authors=tuple(
+                        a.name
+                        for a in source.attributions
+                        if a.kind == "author" and a.name
+                    ),
+                )
+                if reference not in references:
+                    references.append(reference)
+            place = PublicPlace(
+                name=row["name"],
+                explanation=item.explanation,
+                sources=tuple(references),
+            )
+            (target if item.route == "within_limit" else unconfirmed).append(place)
+    return PublicRecommendations(
+        primaries=tuple(primary),
+        runners_up=tuple(runners),
+        travel_unconfirmed=tuple(unconfirmed),
+    )
 
 
 def start_from_wire(value: object) -> StartRunRequest:
@@ -184,11 +263,26 @@ class _Application(FastAPI):
 
 
 def create_app(
-    *, api_settings: ApiSettings, database_settings: DatabaseSettings
+    *,
+    api_settings: ApiSettings,
+    database_settings: DatabaseSettings,
+    publication_socket: Path | None = None,
 ) -> FastAPI:
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        if publication_socket is None:
+            yield
+        else:
+            with PublicationBroker(publication_socket):
+                yield
+
     app = _Application(
-        title="GobbleGobble backend contract", version="0.1.0", debug=False
+        title="GobbleGobble backend contract",
+        version="0.1.0",
+        debug=False,
+        lifespan=lifespan,
     )
+    app.state.publication_socket = publication_socket
     app.add_middleware(ApiBoundary, origins=api_settings.trusted_frontend_origins)
     app.add_middleware(
         ApiCORSMiddleware,
@@ -297,23 +391,71 @@ def create_app(
 
     @app.get(
         "/api/searches/{search_id}/runs/{run_id}",
-        response_model=RunReadResponse,
+        response_model=PublicRunResponse,
         responses=errors,
         operation_id="readRun",
     )
-    def read(search_id: str, run_id: str, credential: Credential) -> RunReadResponse:
+    def read(search_id: str, run_id: str, credential: Credential) -> PublicRunResponse:
         if credential is None:
             raise InvalidSession()
         try:
             query = ReadRunRequest(search_id=search_id, run_id=run_id)
         except ValidationError:
             raise HTTPException(422) from None
-        with session(database_settings) as connection:
+        with session(database_settings) as connection, transaction(connection):
             owned = require_search_access(connection, credential, query.search_id)
             snapshot = read_snapshot(
                 connection, search_id=owned.search_id, run_id=query.run_id
             )
-        return RunReadResponse(run=snapshot)
+            try:
+                stored = read_result(
+                    connection, owned, run_id=query.run_id, now=datetime.now(UTC)
+                )
+                recommendations = (
+                    public_recommendations(connection, owned.search_id, stored)
+                    if isinstance(stored, StoredResult)
+                    else None
+                )
+            except ResultUnavailable, SourceUseDenied:
+                return PublicRunResponse(
+                    run=public_snapshot(snapshot),
+                    progress_message="These results are no longer available. Try a new search.",
+                    result_status="unavailable",
+                )
+        if isinstance(stored, EphemeralResult):
+            try:
+                if publication_socket is None:
+                    raise PublicationBrokerError("broker_unavailable")
+                response = exchange(
+                    publication_socket, {"op": "get", "key": stored.version_id}
+                )
+                if response.get("status") != "ok":
+                    raise PublicationBrokerError("result_unavailable")
+                overlay = PublicResultOverlay.model_validate_json(
+                    json.dumps(response.get("payload"))
+                )
+                if datetime.now(UTC) >= overlay.expires_at:
+                    raise PublicationBrokerError("result_expired")
+                recommendations = overlay.publication
+            except PublicationBrokerError, ValidationError, TypeError, ValueError:
+                return PublicRunResponse(
+                    run=public_snapshot(snapshot),
+                    progress_message="These results are no longer available. Try a new search.",
+                    result_status="unavailable",
+                )
+        return PublicRunResponse(
+            run=public_snapshot(snapshot),
+            progress_message=progress_message(snapshot),
+            recommendations=recommendations,
+            display_version_id=(
+                stored.version_id
+                if isinstance(stored, EphemeralResult)
+                else stored.result.version_id
+                if stored is not None
+                else None
+            ),
+            result_status="available" if stored is not None else None,
+        )
 
     @app.get(
         "/api/searches/{search_id}/runs/{run_id}/events",
@@ -378,5 +520,9 @@ def create_app(
 
 def create_app_from_environment() -> FastAPI:
     return create_app(
-        api_settings=load_api_settings(), database_settings=load_database_settings()
+        api_settings=load_api_settings(),
+        database_settings=load_database_settings(),
+        publication_socket=Path(value)
+        if (value := os.environ.get("GG_PUBLICATION_SOCKET"))
+        else None,
     )

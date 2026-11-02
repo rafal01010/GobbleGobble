@@ -115,8 +115,24 @@ class ResearchTools:
     def search_id(self) -> str:
         return self._search.search_id
 
+    def lineage_source_classes(self) -> dict[str, Source]:
+        """Return source classifications for the current attempt scope."""
+        return self._source_classes.copy()
+
     def matches_ephemeral(self, collection: EvidenceCollection) -> bool:
         return self._ephemeral is not None and self._ephemeral == collection
+
+    def preserve_handles_from(self, previous: ResearchTools) -> None:
+        if (
+            self.search_id != previous.search_id
+            or self.snapshot_id != previous.snapshot_id
+            or not previous._place_ids <= self._place_ids
+            or self._handles
+            or self._handle_by_item
+        ):
+            raise ValueError("invalid research scope expansion")
+        self._handles = previous._handles.copy()
+        self._handle_by_item = previous._handle_by_item.copy()
 
     def _now(self) -> datetime:
         now = self._clock()
